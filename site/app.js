@@ -50,7 +50,7 @@ function h(tag, props = {}, ...children) {
   return node;
 }
 
-/** Current value of a color token from style.css (it changes with light/dark mode). */
+/** Value of a color token defined in style.css. */
 const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 const fmt = {
@@ -215,9 +215,6 @@ async function start() {
   setUpTableToggles();
   $("cells-section").addEventListener("change", (e) => { state.cellSection = e.target.value; state.selectedCell = null; renderCellTypes(); });
   $("qc").addEventListener("toggle", () => { if ($("qc").open) renderQualityChecks(); });
-  // redraw charts when the light/dark theme changes, so they pick up the new colors
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
-  new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   await loadDataset(fromLink() ?? datasets[0]);
 }
