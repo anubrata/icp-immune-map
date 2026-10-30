@@ -1,0 +1,263 @@
+/* ICP Immune Map - styles. Colors are defined once as tokens (light, then dark). */
+
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink-1: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --wash: rgba(42, 120, 214, 0.08);
+  /* group identity: Healthy = blue, ICP = orange (also "lower" / "higher" in ICP) */
+  --healthy: #2a78d6;
+  --icp: #eb6834;
+  /* diverging scale for the heatmap: blue (below the gene's average) - gray - orange (above) */
+  --div-low-3: #1c5cab;
+  --div-low-2: #5598e7;
+  --div-low-1: #b7d3f6;
+  --div-mid: #f0efec;
+  --div-high-1: #f5c4b2;
+  --div-high-2: #df7249;
+  --div-high-3: #9f3600;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink-1: #f0efec;
+    --ink-2: #c3c2b7;
+    --ink-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --wash: rgba(57, 135, 229, 0.16);
+    --healthy: #3987e5;
+    --icp: #d95926;
+    --div-low-3: #86b6ef;
+    --div-low-2: #3987e5;
+    --div-low-1: #1c5cab;
+    --div-mid: #383835;
+    --div-high-1: #9f3600;
+    --div-high-2: #d95923;
+    --div-high-3: #eb9c7f;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --ink-1: #f0efec;
+  --ink-2: #c3c2b7;
+  --ink-muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.10);
+  --wash: rgba(57, 135, 229, 0.16);
+  --healthy: #3987e5;
+  --icp: #d95926;
+  --div-low-3: #86b6ef;
+  --div-low-2: #3987e5;
+  --div-low-1: #1c5cab;
+  --div-mid: #383835;
+  --div-high-1: #9f3600;
+  --div-high-2: #d95923;
+  --div-high-3: #eb9c7f;
+}
+
+/* ---------- base ---------- */
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink-1);
+  font: 14px/1.5 var(--font);
+}
+
+a { color: inherit; text-decoration-color: var(--axis); text-underline-offset: 2px; }
+a:hover { text-decoration-color: currentColor; }
+
+h1, h2, h3 { margin: 0; line-height: 1.25; }
+h1 { font-size: 1.75rem; font-weight: 650; }
+h2 { font-size: 1.05rem; font-weight: 600; }
+
+.wrap {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding-inline: 16px;
+}
+
+button, select, input { font: inherit; color: inherit; }
+
+button, .button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+button:hover, .button:hover { background: var(--wash); }
+:focus-visible { outline: 2px solid var(--healthy); outline-offset: 2px; }
+
+select, input[type="search"] {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 4px 8px;
+  min-width: 0;
+}
+
+/* ---------- header ---------- */
+
+.page-header { padding-block: 28px 8px; }
+.title-row { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; }
+.subtitle { margin: 4px 0 0; color: var(--ink-2); font-size: 1rem; }
+.dataset-picker { display: flex; gap: 8px; align-items: center; color: var(--ink-2); }
+.facts { margin: 14px 0 0; color: var(--ink-2); }
+.note {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--axis);
+  background: var(--surface);
+  color: var(--ink-2);
+  max-width: 80ch;
+}
+
+/* ---------- layout ---------- */
+
+/* minmax(0, 1fr): cards may shrink below their content, so charts follow the screen width */
+main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; padding-block: 16px 40px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  min-width: 0;
+}
+.card-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-start; justify-content: space-between; }
+.caption { margin: 4px 0 8px; color: var(--ink-2); max-width: 90ch; }
+.chart { width: 100%; }
+.empty { color: var(--ink-2); margin: 12px 0; }
+.error { padding: 12px; border: 1px solid var(--border); border-left: 3px solid var(--icp); background: var(--surface); }
+
+.split { display: grid; gap: 16px; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+.split .detail { position: sticky; top: 16px; }
+@media (max-width: 900px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .split .detail { position: static; }
+}
+
+/* ---------- summary tiles ---------- */
+
+.tiles { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.tile-label { color: var(--ink-2); }
+.tile-value { font-size: 2rem; font-weight: 600; line-height: 1.2; margin-top: 2px; }
+.tile-sub { color: var(--ink-2); margin-top: 2px; }
+.tile-value.name { font-size: 1.5rem; padding-block: 4px; }
+
+/* ---------- immune cell types ---------- */
+
+.tools { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; color: var(--ink-2); }
+.tools label { display: flex; gap: 6px; align-items: center; }
+.tools select { max-width: 24rem; }
+.cells-split { display: grid; gap: 16px; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+@media (max-width: 900px) { .cells-split { grid-template-columns: minmax(0, 1fr); } }
+#cell-detail h3 { margin-top: 4px; }
+
+/* a small colored mark beside text carries identity; text itself stays in ink colors */
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.swatch.healthy, .swatch.lower { background: var(--healthy); }
+.swatch.icp, .swatch.higher { background: var(--icp); }
+.swatch.bar { border-radius: 2px; }
+
+/* ---------- filters ---------- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.filters label { display: flex; gap: 6px; align-items: center; color: var(--ink-2); }
+.filters input[type="search"] { width: 16rem; max-width: 100%; }
+.filters select { max-width: 18rem; }
+.filter-count { color: var(--ink-2); margin-left: auto; }
+
+/* ---------- tables ---------- */
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { color: var(--ink-2); font-weight: 600; white-space: nowrap; }
+td.num, th.num { text-align: right; }
+th button { border: 0; background: none; padding: 0; font-weight: 600; color: inherit; }
+th button::after { content: ""; display: inline-block; width: 1em; }
+th[aria-sort="ascending"] button::after { content: " ↑"; }
+th[aria-sort="descending"] button::after { content: " ↓"; }
+
+#gene-table tbody tr { cursor: pointer; }
+#gene-table tbody tr:hover { background: var(--wash); }
+#gene-table tbody tr[aria-selected="true"] { background: var(--wash); box-shadow: inset 3px 0 0 var(--ink-2); }
+.gene-name { font-weight: 600; }
+.gene-desc { color: var(--ink-2); font-size: 0.86rem; max-width: 26ch; }
+#gene-table th, #gene-table td { padding-inline: 6px; }
+.table-more { margin-top: 10px; }
+.muted { color: var(--ink-muted); }
+
+.badge {
+  display: inline-block;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 0.82rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* ---------- gene detail ---------- */
+
+.detail-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
+.detail-head h2 { font-size: 1.35rem; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; margin: 12px 0; }
+.stats div { min-width: 0; }
+.stats dt { color: var(--ink-2); font-size: 0.86rem; }
+.stats dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; padding: 0; list-style: none; }
+.chips a { display: inline-block; border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; text-decoration: none; }
+.chips a:hover { background: var(--wash); }
+.chips .source { color: var(--ink-muted); margin-left: 4px; font-size: 0.82rem; }
+.chips .chip { border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; }
+.chip-button { border-radius: 999px; padding: 2px 10px; }
+.chip-button[disabled] { cursor: default; color: var(--ink-muted); background: none; }
+h3 { font-size: 1rem; margin-top: 12px; }
+.links { color: var(--ink-2); }
+
+/* ---------- quality checks ---------- */
+
+details.card > summary { cursor: pointer; font-weight: 600; font-size: 1.05rem; }
+details.card[open] > summary { margin-bottom: 8px; }
+
+/* ---------- footer ---------- */
+
+footer { color: var(--ink-2); padding-block: 8px 40px; }
+footer ul { padding-left: 1.2em; margin: 6px 0; }

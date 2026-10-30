@@ -1,0 +1,199 @@
+population_id	section	population	kind	markers	low_markers	source_text
+1.1	1. Pan-immune and major lineage markers	Leukocytes	cell population	PTPRC		PTPRC
+1.2	1. Pan-immune and major lineage markers	T lymphocytes	cell population	CD3D,CD3E,CD3G,TRAC		CD3D, CD3E, CD3G, TRAC
+1.3	1. Pan-immune and major lineage markers	CD4 T cells	cell population	CD3D,CD3E,CD4,IL7R		CD3D, CD3E, CD4, IL7R
+1.4	1. Pan-immune and major lineage markers	CD8 T cells	cell population	CD3D,CD3E,CD8A,CD8B		CD3D, CD3E, CD8A, CD8B
+1.5	1. Pan-immune and major lineage markers	B lymphocytes	cell population	CD79A,CD79B,MS4A1,CD19		CD79A, CD79B, MS4A1, CD19
+1.6	1. Pan-immune and major lineage markers	NK cells	cell population	NKG7,GNLY,KLRD1,NCR1,PRF1		NKG7, GNLY, KLRD1, NCR1, PRF1
+1.7	1. Pan-immune and major lineage markers	Myeloid cells	cell population	LYZ,TYROBP,SPI1		LYZ, TYROBP, SPI1
+1.8	1. Pan-immune and major lineage markers	Monocytes	cell population	LYZ,LST1,FCN1,CTSS		LYZ, LST1, FCN1, CTSS
+1.9	1. Pan-immune and major lineage markers	Macrophages	cell population	CD68,CD163,MERTK,C1QA,C1QB		CD68, CD163, MERTK, C1QA, C1QB
+1.10	1. Pan-immune and major lineage markers	Dendritic cells	cell population	HLA-DRA,HLA-DPA1,ITGAX		HLA-DRA, HLA-DPA1, ITGAX
+1.11	1. Pan-immune and major lineage markers	Granulocytes	cell population	CSF3R,FCGR3B,S100A8,S100A9		CSF3R, FCGR3B, S100A8, S100A9
+1.12	1. Pan-immune and major lineage markers	Mast cells	cell population	KIT,TPSAB1,TPSB2,CPA3		KIT, TPSAB1, TPSB2, CPA3
+1.13	1. Pan-immune and major lineage markers	Plasma cells	cell population	JCHAIN,MZB1,XBP1,SDC1		JCHAIN, MZB1, XBP1, SDC1
+2.1	2. Monocyte states	Classical monocytes	cell population	CD14,S100A8,S100A9,FCN1,CCR2		CD14, S100A8, S100A9, FCN1, CCR2
+2.2	2. Monocyte states	Intermediate monocytes	cell population	CD14,FCGR3A,HLA-DRA,CD74		CD14, FCGR3A, HLA-DRA, CD74
+2.3	2. Monocyte states	Nonclassical monocytes	cell population	FCGR3A,CX3CR1,LST1,MS4A7		FCGR3A, CX3CR1, LST1, MS4A7
+2.4	2. Monocyte states	Inflammatory monocytes	cell population	IL1B,S100A8,S100A9,CCL2,NLRP3		IL1B, S100A8, S100A9, CCL2, NLRP3
+2.5	2. Monocyte states	Patrolling monocytes	cell population	FCGR3A,CX3CR1,LST1,IFITM3		FCGR3A, CX3CR1, LST1, IFITM3
+2.6	2. Monocyte states	Interferon-stimulated monocytes	cell population	ISG15,IFIT1,IFIT3,MX1,OAS1		ISG15, IFIT1, IFIT3, MX1, OAS1
+2.7	2. Monocyte states	Antigen-presenting monocytes	cell population	HLA-DRA,HLA-DRB1,CD74,CIITA		HLA-DRA, HLA-DRB1, CD74, CIITA
+2.8	2. Monocyte states	Monocyte-derived macrophages	cell population	CD68,CSF1R,LYZ,FCGR1A,MERTK		CD68, CSF1R, LYZ, FCGR1A, MERTK
+3.1	3. Macrophage types and functional states	General macrophages	cell population	CD68,CSF1R,MERTK,C1QA,C1QB		CD68, CSF1R, MERTK, C1QA, C1QB
+3.2	3. Macrophage types and functional states	Tissue-resident macrophages	cell population	C1QA,C1QB,C1QC,FOLR2,MERTK		C1QA, C1QB, C1QC, FOLR2, MERTK
+3.3	3. Macrophage types and functional states	Inflammatory macrophages	cell population	IL1B,TNF,CXCL8,CCL3,CCL4		IL1B, TNF, CXCL8, CCL3, CCL4
+3.4	3. Macrophage types and functional states	M1-like macrophages	cell population	CXCL9,CXCL10,STAT1,IRF1,GBP1		CXCL9, CXCL10, STAT1, IRF1, GBP1
+3.5	3. Macrophage types and functional states	M2-like macrophages	cell population	MRC1,CD163,MSR1,CCL18,IL10		MRC1, CD163, MSR1, CCL18, IL10
+3.6	3. Macrophage types and functional states	Regulatory macrophages	cell population	IL10,MERTK,CD163,MRC1		IL10, MERTK, CD163, MRC1
+3.7	3. Macrophage types and functional states	Lipid-associated macrophages	cell population	TREM2,APOE,LPL,CD9,GPNMB		TREM2, APOE, LPL, CD9, GPNMB
+3.8	3. Macrophage types and functional states	Scar-associated macrophages	cell population	TREM2,CD9,SPP1,GPNMB,LGALS3		TREM2, CD9, SPP1, GPNMB, LGALS3
+3.9	3. Macrophage types and functional states	SPP1-positive macrophages	cell population	SPP1,APOE,GPNMB,LGALS3		SPP1, APOE, GPNMB, LGALS3
+3.10	3. Macrophage types and functional states	Tumor-associated macrophages	cell population	APOE,C1QC,SPP1,TREM2,MRC1		APOE, C1QC, SPP1, TREM2, MRC1
+3.11	3. Macrophage types and functional states	Foam-cell macrophages	cell population	APOE,LPL,ABCA1,ABCG1,CD36		APOE, LPL, ABCA1, ABCG1, CD36
+3.12	3. Macrophage types and functional states	Efferocytic macrophages	cell population	MERTK,AXL,GAS6,LRP1		MERTK, AXL, GAS6, LRP1
+3.13	3. Macrophage types and functional states	Interferon-responsive macrophages	cell population	ISG15,MX1,IFIT3,STAT1		ISG15, MX1, IFIT3, STAT1
+3.14	3. Macrophage types and functional states	Proliferating macrophages	cell population	MKI67,TOP2A,STMN1,PCNA		MKI67, TOP2A, STMN1, PCNA
+3.15	3. Macrophage types and functional states	Antigen-presenting macrophages	cell population	HLA-DRA,CD74,HLA-DPA1,CIITA		HLA-DRA, CD74, HLA-DPA1, CIITA
+3.16	3. Macrophage types and functional states	Kupffer cells	cell population	VSIG4,MARCO,TIMD4,CD5L,CLEC4F		VSIG4, MARCO, TIMD4, CD5L, CLEC4F
+3.17	3. Macrophage types and functional states	Alveolar macrophages	cell population	MARCO,PPARG,FABP4,MRC1		MARCO, PPARG, FABP4, MRC1
+3.18	3. Macrophage types and functional states	Microglia	cell population	P2RY12,TMEM119,SALL1,CX3CR1		P2RY12, TMEM119, SALL1, CX3CR1
+3.19	3. Macrophage types and functional states	Perivascular macrophages	cell population	LYVE1,FOLR2,MRC1,CD163		LYVE1, FOLR2, MRC1, CD163
+3.20	3. Macrophage types and functional states	Red-pulp macrophages	cell population	CD163,HMOX1,SPIC,VCAM1		CD163, HMOX1, SPI-C, VCAM1
+3.21	3. Macrophage types and functional states	Intestinal macrophages	cell population	CX3CR1,CD163,MRC1,C1QC		CX3CR1, CD163, MRC1, C1QC
+3.22	3. Macrophage types and functional states	Osteoclasts	cell population	ACP5,CTSK,MMP9,ATP6V0D2		ACP5, CTSK, MMP9, ATP6V0D2
+3.23	3. Macrophage types and functional states	Hofbauer cells	cell population	FOLR2,CD163,MRC1,C1QC		FOLR2, CD163, MRC1, C1QC
+4.1	4. Dendritic-cell populations	cDC1	cell population	CLEC9A,XCR1,BATF3,IRF8,CADM1		CLEC9A, XCR1, BATF3, IRF8, CADM1
+4.2	4. Dendritic-cell populations	cDC2	cell population	CD1C,FCER1A,CLEC10A,IRF4		CD1C, FCER1A, CLEC10A, IRF4
+4.3	4. Dendritic-cell populations	DC3	cell population	CD1C,CD163,CD14,LYZ		CD1C, CD163, CD14, LYZ
+4.4	4. Dendritic-cell populations	Plasmacytoid DC	cell population	IL3RA,CLEC4C,LILRA4,TCF4		IL3RA, CLEC4C, LILRA4, TCF4
+4.5	4. Dendritic-cell populations	AXL+ SIGLEC6+ DC-like cells	cell population	AXL,SIGLEC6,LILRA4		AXL, SIGLEC6, LILRA4
+4.6	4. Dendritic-cell populations	Monocyte-derived DC	cell population	CD1C,ITGAX,LYZ,FCER1A		CD1C, ITGAX, LYZ, FCER1A
+4.7	4. Dendritic-cell populations	Langerhans cells	cell population	CD1A,CD207,EPCAM,CDH1		CD1A, CD207, EPCAM, CDH1
+4.8	4. Dendritic-cell populations	Migratory DC	cell population	CCR7,LAMP3,FSCN1,CCL19		CCR7, LAMP3, FSCN1, CCL19
+4.9	4. Dendritic-cell populations	Mature regulatory DC	cell population	LAMP3,CCR7,CD274,IDO1		LAMP3, CCR7, CD274, IDO1
+4.10	4. Dendritic-cell populations	Interferon-responsive DC	cell population	ISG15,IFIT3,MX1,STAT1		ISG15, IFIT3, MX1, STAT1
+4.11	4. Dendritic-cell populations	Activated DC	cell population	CD83,CD80,CD86,CCR7		CD83, CD80, CD86, CCR7
+5.1	5. Neutrophils and other granulocytes	Neutrophils	cell population	FCGR3B,CSF3R,CXCR2,S100A8,S100A9		FCGR3B, CSF3R, CXCR2, S100A8, S100A9
+5.2	5. Neutrophils and other granulocytes	Immature neutrophils	cell population	ELANE,MPO,PRTN3,AZU1		ELANE, MPO, PRTN3, AZU1
+5.3	5. Neutrophils and other granulocytes	Mature neutrophils	cell population	FCGR3B,CXCR2,CEACAM8,MMP9		FCGR3B, CXCR2, CEACAM8, MMP9
+5.4	5. Neutrophils and other granulocytes	Activated neutrophils	cell population	CXCL8,FOS,JUN,NFKBIA		CXCL8, FOS, JUN, NFKBIA
+5.5	5. Neutrophils and other granulocytes	Aged neutrophils	cell population	CXCR4,SELL,ITGAM		CXCR4, SELL, ITGAM (context-dependent)
+5.6	5. Neutrophils and other granulocytes	Interferon-responsive neutrophils	cell population	ISG15,IFIT1,MX1		ISG15, IFIT1, MX1
+5.7	5. Neutrophils and other granulocytes	Suppressive PMN-MDSC-like cells	cell population	OLR1,S100A8,S100A9,ARG1		OLR1, S100A8, S100A9, ARG1
+5.8	5. Neutrophils and other granulocytes	Eosinophils	cell population	CLC,CCR3,IL5RA,PRG2,RNASE2		CLC, CCR3, IL5RA, PRG2, RNASE2
+5.9	5. Neutrophils and other granulocytes	Activated eosinophils	cell population	CLC,IL1RL1,ALOX15		CLC, IL1RL1, ALOX15
+5.10	5. Neutrophils and other granulocytes	Basophils	cell population	FCER1A,MS4A2,HDC,IL3RA		FCER1A, MS4A2, HDC, IL3RA
+5.11	5. Neutrophils and other granulocytes	Activated basophils	cell population	IL4,IL13,HDC,FCER1A		IL4, IL13, HDC, FCER1A
+6.1	6. Mast-cell populations	General mast cells	cell population	KIT,TPSAB1,TPSB2,CPA3		KIT, TPSAB1, TPSB2, CPA3
+6.2	6. Mast-cell populations	Tryptase-positive mast cells	cell population	TPSAB1,TPSB2		TPSAB1, TPSB2
+6.3	6. Mast-cell populations	Tryptase/chymase-positive mast cells	cell population	TPSAB1,TPSB2,CMA1,CPA3		TPSAB1, TPSB2, CMA1, CPA3
+6.4	6. Mast-cell populations	Chymase-positive mast cells	cell population	CMA1,CPA3		CMA1, CPA3
+6.5	6. Mast-cell populations	Activated mast cells	cell population	FOS,JUN,IL13,TNF		FOS, JUN, IL13, TNF
+6.6	6. Mast-cell populations	Proliferating mast cells	cell population	KIT,MKI67,TOP2A		KIT, MKI67, TOP2A
+7.1	7. Natural killer cells	General NK cells	cell population	NKG7,KLRD1,GNLY,NCR1		NKG7, KLRD1, GNLY, NCR1
+7.2	7. Natural killer cells	CD56bright NK cells	cell population	NCAM1,XCL1,XCL2,GZMK		NCAM1, XCL1, XCL2, GZMK
+7.3	7. Natural killer cells	CD56dim cytotoxic NK cells	cell population	FCGR3A,PRF1,GZMB,GNLY		FCGR3A, PRF1, GZMB, GNLY
+7.4	7. Natural killer cells	Adaptive NK cells	cell population	KLRC2	FCER1G,ZBTB16	KLRC2, FCER1G-low, ZBTB16-low
+7.5	7. Natural killer cells	Mature CD57+ NK cells	cell population	B3GAT1,FCGR3A,PRF1		B3GAT1, FCGR3A, PRF1
+7.6	7. Natural killer cells	Tissue-resident NK cells	cell population	ITGA1,CXCR6,CD69		ITGA1, CXCR6, CD69
+7.7	7. Natural killer cells	Liver-resident NK cells	cell population	CXCR6,ITGA1,CD69,EOMES		CXCR6, ITGA1, CD69, EOMES
+7.8	7. Natural killer cells	Decidual NK cells	cell population	NCAM1,KIR2DL4,XCL1,XCL2		NCAM1, KIR2DL4, XCL1, XCL2
+7.9	7. Natural killer cells	Activated NK cells	cell population	IFNG,TNF,GZMB,PRF1		IFNG, TNF, GZMB, PRF1
+7.10	7. Natural killer cells	Proliferating NK cells	cell population	MKI67,TOP2A,STMN1		MKI67, TOP2A, STMN1
+8.1	8. Innate lymphoid cells	ILC progenitors	cell population	IL7R,ID2,TCF7,KIT		IL7R, ID2, TCF7, KIT
+8.2	8. Innate lymphoid cells	ILC1	cell population	TBX21,IFNG,IL7R,CXCR6		TBX21, IFNG, IL7R, CXCR6
+8.3	8. Innate lymphoid cells	ILC2	cell population	GATA3,RORA,IL1RL1,PTGDR2,IL5,IL13		GATA3, RORA, IL1RL1, PTGDR2, IL5, IL13
+8.4	8. Innate lymphoid cells	ILC3	cell population	RORC,IL7R,IL23R,IL22		RORC, IL7R, IL23R, IL22
+8.5	8. Innate lymphoid cells	NCR+ ILC3	cell population	RORC,NCR2,IL22		RORC, NCR2, IL22
+8.6	8. Innate lymphoid cells	LTi-like ILC3	cell population	RORC,LTA,LTB,CCR6		RORC, LTA, LTB, CCR6
+8.7	8. Innate lymphoid cells	Regulatory ILC-like states	cell population	IL10,TGFB1		IL10, TGFB1 (research-defined)
+9.1	9. CD4 T-cell populations	Naive CD4 T cells	cell population	CCR7,SELL,TCF7,LEF1		CCR7, SELL, TCF7, LEF1
+9.2	9. CD4 T-cell populations	Central memory CD4 T cells	cell population	CCR7,IL7R,TCF7,LTB		CCR7, IL7R, TCF7, LTB
+9.3	9. CD4 T-cell populations	Effector memory CD4 T cells	cell population	IL7R,GZMK,CCL5		IL7R, GZMK, CCL5
+9.4	9. CD4 T-cell populations	Tissue-resident memory CD4 T cells	cell population	CD69,CXCR6,ITGAE		CD69, CXCR6, ITGAE
+9.5	9. CD4 T-cell populations	Stem-cell-like memory CD4 T cells	cell population	TCF7,LEF1,CCR7,IL7R		TCF7, LEF1, CCR7, IL7R
+9.6	9. CD4 T-cell populations	Th1	cell population	TBX21,IFNG,CXCR3,STAT4		TBX21, IFNG, CXCR3, STAT4
+9.7	9. CD4 T-cell populations	Th2	cell population	GATA3,IL4,IL5,IL13,CCR4		GATA3, IL4, IL5, IL13, CCR4
+9.8	9. CD4 T-cell populations	Th9	cell population	IL9,IRF4,SPI1		IL9, IRF4, SPI1
+9.9	9. CD4 T-cell populations	Th17	cell population	RORC,IL17A,IL17F,CCR6,IL23R		RORC, IL17A, IL17F, CCR6, IL23R
+9.10	9. CD4 T-cell populations	Th22	cell population	IL22,AHR,CCR10		IL22, AHR, CCR10
+9.11	9. CD4 T-cell populations	Th17.1	cell population	RORC,TBX21,IFNG,CCR6		RORC, TBX21, IFNG, CCR6
+9.12	9. CD4 T-cell populations	Tfh	cell population	CXCR5,BCL6,PDCD1,IL21		CXCR5, BCL6, PDCD1, IL21
+9.13	9. CD4 T-cell populations	Tfh1-like	cell population	CXCR5,TBX21,IFNG		CXCR5, TBX21, IFNG
+9.14	9. CD4 T-cell populations	Tfh2-like	cell population	CXCR5,GATA3,IL4		CXCR5, GATA3, IL4
+9.15	9. CD4 T-cell populations	Tfh17-like	cell population	CXCR5,RORC,CCR6		CXCR5, RORC, CCR6
+9.16	9. CD4 T-cell populations	Peripheral helper T cells	cell population	PDCD1,CXCL13,MAF,IL21		PDCD1, CXCL13, MAF, IL21
+9.17	9. CD4 T-cell populations	Regulatory T cells	cell population	FOXP3,IL2RA,CTLA4,IKZF2		FOXP3, IL2RA, CTLA4, IKZF2
+9.18	9. CD4 T-cell populations	Activated Treg	cell population	FOXP3,IL2RA,CTLA4,TIGIT		FOXP3, IL2RA, CTLA4, TIGIT
+9.19	9. CD4 T-cell populations	Follicular regulatory T cells	cell population	FOXP3,BCL6,CXCR5,CTLA4		FOXP3, BCL6, CXCR5, CTLA4
+9.20	9. CD4 T-cell populations	Tr1 cells	cell population	IL10,LAG3,ITGA2,MAF		IL10, LAG3, ITGA2, MAF
+9.21	9. CD4 T-cell populations	Cytotoxic CD4 T cells	cell population	GZMB,PRF1,NKG7,CCL5		GZMB, PRF1, NKG7, CCL5
+9.22	9. CD4 T-cell populations	Exhausted CD4 T cells	cell population	PDCD1,LAG3,HAVCR2,TIGIT		PDCD1, LAG3, HAVCR2, TIGIT
+9.23	9. CD4 T-cell populations	Proliferating CD4 T cells	cell population	MKI67,TOP2A,STMN1		MKI67, TOP2A, STMN1
+10.1	10. CD8 T-cell populations	Naive CD8 T cells	cell population	CCR7,SELL,TCF7,LEF1		CCR7, SELL, TCF7, LEF1
+10.2	10. CD8 T-cell populations	Central memory CD8 T cells	cell population	CCR7,IL7R,TCF7		CCR7, IL7R, TCF7
+10.3	10. CD8 T-cell populations	Effector memory CD8 T cells	cell population	GZMK,CCL5,CXCR3		GZMK, CCL5, CXCR3
+10.4	10. CD8 T-cell populations	TEMRA CD8 T cells	cell population	CX3CR1,FGFBP2,GZMB,PRF1		CX3CR1, FGFBP2, GZMB, PRF1
+10.5	10. CD8 T-cell populations	Tissue-resident memory CD8 T cells	cell population	CD69,ITGAE,CXCR6,ZNF683		CD69, ITGAE, CXCR6, ZNF683
+10.6	10. CD8 T-cell populations	Stem-like memory CD8 T cells	cell population	TCF7,LEF1,IL7R		TCF7, LEF1, IL7R
+10.7	10. CD8 T-cell populations	Cytotoxic effector CD8 T cells	cell population	PRF1,GZMB,GNLY,NKG7		PRF1, GZMB, GNLY, NKG7
+10.8	10. CD8 T-cell populations	Memory precursor CD8 T cells	cell population	IL7R,TCF7,BCL2		IL7R, TCF7, BCL2
+10.9	10. CD8 T-cell populations	Short-lived effector CD8 T cells	cell population	GZMB,PRF1,CX3CR1		GZMB, PRF1, CX3CR1
+10.10	10. CD8 T-cell populations	Progenitor-exhausted CD8 T cells	cell population	TCF7,PDCD1,SLAMF6,CXCR5		TCF7, PDCD1, SLAMF6, CXCR5
+10.11	10. CD8 T-cell populations	Transitional exhausted CD8 T cells	cell population	PDCD1,GZMK,TOX		PDCD1, GZMK, TOX
+10.12	10. CD8 T-cell populations	Terminally exhausted CD8 T cells	cell population	PDCD1,HAVCR2,LAG3,TOX,ENTPD1		PDCD1, HAVCR2, LAG3, TOX, ENTPD1
+10.13	10. CD8 T-cell populations	Activated CD8 T cells	cell population	IFNG,GZMB,TNF,CD69		IFNG, GZMB, TNF, CD69
+10.14	10. CD8 T-cell populations	Proliferating CD8 T cells	cell population	MKI67,TOP2A,STMN1		MKI67, TOP2A, STMN1
+11.1	11. Unconventional T cells	γδ T cells	cell population	TRDC,TRGC1,TRGC2		TRDC, TRGC1, TRGC2
+11.2	11. Unconventional T cells	Vδ1 T cells	cell population	TRDV1,TRDC		TRDV1, TRDC
+11.3	11. Unconventional T cells	Vδ2 T cells	cell population	TRDV2,TRDC		TRDV2, TRDC
+11.4	11. Unconventional T cells	Vδ3 T cells	cell population	TRDV3,TRDC		TRDV3, TRDC
+11.5	11. Unconventional T cells	Vγ9Vδ2 T cells	cell population	TRGV9,TRDV2		TRGV9, TRDV2
+11.6	11. Unconventional T cells	IL-17-producing γδ T cells	cell population	TRDC,RORC,IL17A		TRDC, RORC, IL17A
+11.7	11. Unconventional T cells	IFN-γ-producing γδ T cells	cell population	TRDC,TBX21,IFNG		TRDC, TBX21, IFNG
+11.8	11. Unconventional T cells	MAIT cells	cell population	TRAV1-2,KLRB1,SLC4A10,ZBTB16		TRAV1-2, KLRB1, SLC4A10, ZBTB16
+11.9	11. Unconventional T cells	MAIT1-like cells	cell population	TBX21,IFNG,KLRB1		TBX21, IFNG, KLRB1
+11.10	11. Unconventional T cells	MAIT17-like cells	cell population	RORC,IL17A,CCR6		RORC, IL17A, CCR6
+11.11	11. Unconventional T cells	Invariant NKT cells	cell population	ZBTB16,TRAV10,KLRB1		ZBTB16, TRAV10, KLRB1
+11.12	11. Unconventional T cells	NKT1-like cells	cell population	TBX21,IFNG,ZBTB16		TBX21, IFNG, ZBTB16
+11.13	11. Unconventional T cells	NKT2-like cells	cell population	GATA3,IL4,ZBTB16		GATA3, IL4, ZBTB16
+11.14	11. Unconventional T cells	NKT17-like cells	cell population	RORC,IL17A,ZBTB16		RORC, IL17A, ZBTB16
+11.15	11. Unconventional T cells	Double-negative αβ T cells	cell population	CD3D,CD3E,TRAC	CD4,CD8A,CD8B	CD3D, CD3E, TRAC with low CD4/CD8A/CD8B
+12.1	12. B-cell populations	General B cells	cell population	CD79A,CD79B,MS4A1,CD19		CD79A, CD79B, MS4A1, CD19
+12.2	12. B-cell populations	Pro-B cells	cell population	DNTT,RAG1,RAG2,CD79A		DNTT, RAG1, RAG2, CD79A
+12.3	12. B-cell populations	Pre-B cells	cell population	VPREB1,IGLL1,CD79A,DNTT		VPREB1, IGLL1, CD79A, DNTT
+12.4	12. B-cell populations	Immature B cells	cell population	IGHM,TCL1A,CD79A		IGHM, TCL1A, CD79A
+12.5	12. B-cell populations	Transitional B cells	cell population	TCL1A,CD24,CD38,IGHD		TCL1A, CD24, CD38, IGHD
+12.6	12. B-cell populations	Naive B cells	cell population	MS4A1,IGHD,IGHM,TCL1A		MS4A1, IGHD, IGHM, TCL1A
+12.7	12. B-cell populations	Follicular B cells	cell population	MS4A1,CD19,CXCR5,IGHD		MS4A1, CD19, CXCR5, IGHD
+12.8	12. B-cell populations	Marginal-zone B cells	cell population	CD1C,IGHM,NOTCH2,CD27		CD1C, IGHM, NOTCH2, CD27
+12.9	12. B-cell populations	Unswitched memory B cells	cell population	CD27,IGHM,IGHD,TNFRSF13B		CD27, IGHM, IGHD, TNFRSF13B
+12.10	12. B-cell populations	Switched memory B cells	cell population	CD27,IGHG1,IGHA1,TNFRSF13B		CD27, IGHG1, IGHA1, TNFRSF13B
+12.11	12. B-cell populations	Atypical memory B cells	cell population	FCRL5,ITGAX,TBX21,ZEB2		FCRL5, ITGAX, TBX21, ZEB2
+12.12	12. B-cell populations	Age-associated B cells	cell population	ITGAX,TBX21,FCRL5		ITGAX, TBX21, FCRL5
+12.13	12. B-cell populations	Germinal-center B cells	cell population	BCL6,AICDA,RGS13,CD38		BCL6, AICDA, RGS13, CD38
+12.14	12. B-cell populations	Germinal-center dark-zone B cells	cell population	CXCR4,MKI67,AICDA		CXCR4, MKI67, AICDA
+12.15	12. B-cell populations	Germinal-center light-zone B cells	cell population	CD83,MYC,CD86		CD83, MYC, CD86
+12.16	12. B-cell populations	Activated B cells	cell population	CD69,CD83,CD86,NFKBIA		CD69, CD83, CD86, NFKBIA
+12.17	12. B-cell populations	Regulatory B-cell candidates	cell population	IL10,CD24,CD38,CD1D		IL10, CD24, CD38, CD1D
+12.18	12. B-cell populations	Plasmablasts	cell population	PRDM1,XBP1,MZB1,JCHAIN		PRDM1, XBP1, MZB1, JCHAIN
+12.19	12. B-cell populations	Plasma cells	cell population	SDC1,XBP1,MZB1,JCHAIN		SDC1, XBP1, MZB1, JCHAIN
+12.20	12. B-cell populations	IgM plasma cells	cell population	IGHM,JCHAIN,XBP1		IGHM, JCHAIN, XBP1
+12.21	12. B-cell populations	IgG plasma cells	cell population	IGHG1,IGHG2,XBP1		IGHG1, IGHG2, XBP1
+12.22	12. B-cell populations	IgA plasma cells	cell population	IGHA1,IGHA2,JCHAIN,XBP1		IGHA1, IGHA2, JCHAIN, XBP1
+12.23	12. B-cell populations	IgE plasma cells	cell population	IGHE,XBP1,PRDM1		IGHE, XBP1, PRDM1
+13.1	13. Common immune-cell functional states across lineages	Cell proliferation	functional state	MKI67,TOP2A,PCNA,STMN1		MKI67, TOP2A, PCNA, STMN1
+13.2	13. Common immune-cell functional states across lineages	Type I interferon response	functional state	ISG15,IFIT1,IFIT3,MX1,OAS1		ISG15, IFIT1, IFIT3, MX1, OAS1
+13.3	13. Common immune-cell functional states across lineages	IFN-γ response	functional state	STAT1,IRF1,CXCL9,CXCL10,GBP1		STAT1, IRF1, CXCL9, CXCL10, GBP1
+13.4	13. Common immune-cell functional states across lineages	NF-κB inflammatory response	functional state	NFKBIA,TNFAIP3,RELB		NFKBIA, TNFAIP3, RELB
+13.5	13. Common immune-cell functional states across lineages	Immediate early activation	functional state	FOS,JUN,JUNB,EGR1		FOS, JUN, JUNB, EGR1
+13.6	13. Common immune-cell functional states across lineages	Antigen presentation	functional state	HLA-DRA,HLA-DPA1,CD74,CIITA		HLA-DRA, HLA-DPA1, CD74, CIITA
+13.7	13. Common immune-cell functional states across lineages	Cytotoxicity	functional state	PRF1,GZMB,GNLY,NKG7		PRF1, GZMB, GNLY, NKG7
+13.8	13. Common immune-cell functional states across lineages	Chemokine production	functional state	CCL3,CCL4,CXCL8,CXCL10		CCL3, CCL4, CXCL8, CXCL10
+13.9	13. Common immune-cell functional states across lineages	Immunoregulation	functional state	IL10,TGFB1,CTLA4,TIGIT		IL10, TGFB1, CTLA4, TIGIT
+13.10	13. Common immune-cell functional states across lineages	T-cell dysfunction/exhaustion	functional state	PDCD1,LAG3,HAVCR2,TOX		PDCD1, LAG3, HAVCR2, TOX
+13.11	13. Common immune-cell functional states across lineages	Hypoxia response	functional state	HIF1A,VEGFA,SLC2A1		HIF1A, VEGFA, SLC2A1
+13.12	13. Common immune-cell functional states across lineages	Cellular stress	functional state	HSPA1A,HSPA1B,DNAJB1		HSPA1A, HSPA1B, DNAJB1
+13.13	13. Common immune-cell functional states across lineages	Apoptosis	functional state	BAX,CASP3,PMAIP1		BAX, CASP3, PMAIP1
+13.14	13. Common immune-cell functional states across lineages	Senescence-associated signatures	functional state	CDKN1A,CDKN2A,SERPINE1		CDKN1A, CDKN2A, SERPINE1
+13.15	13. Common immune-cell functional states across lineages	Lipid metabolism	functional state	APOE,LPL,CD36,ABCA1		APOE, LPL, CD36, ABCA1
+13.16	13. Common immune-cell functional states across lineages	Phagocytosis/efferocytosis	functional state	MERTK,AXL,LRP1		MERTK, AXL, LRP1
+13.17	13. Common immune-cell functional states across lineages	Inflammasome-associated activity	functional state	NLRP3,IL1B,PYCARD		NLRP3, IL1B, PYCARD
+14.1	14. Liver-specific immune-cell annotation reference	Resident Kupffer cells	cell population	MARCO,VSIG4,TIMD4,CD5L		MARCO, VSIG4, TIMD4, CD5L
+14.2	14. Liver-specific immune-cell annotation reference	Recruited monocytes	cell population	FCN1,LST1,S100A8,CCR2		FCN1, LST1, S100A8, CCR2
+14.3	14. Liver-specific immune-cell annotation reference	Inflammatory hepatic macrophages	cell population	IL1B,CCL2,TNF,CXCL8		IL1B, CCL2, TNF, CXCL8
+14.4	14. Liver-specific immune-cell annotation reference	TREM2-positive macrophages	cell population	TREM2,APOE,CD9,GPNMB		TREM2, APOE, CD9, GPNMB
+14.5	14. Liver-specific immune-cell annotation reference	Scar-associated macrophages	cell population	TREM2,SPP1,CD9,LGALS3		TREM2, SPP1, CD9, LGALS3
+14.6	14. Liver-specific immune-cell annotation reference	Lipid-associated macrophages	cell population	TREM2,LPL,APOE,CD36		TREM2, LPL, APOE, CD36
+14.7	14. Liver-specific immune-cell annotation reference	Liver-resident NK cells	cell population	CXCR6,ITGA1,CD69		CXCR6, ITGA1, CD69
+14.8	14. Liver-specific immune-cell annotation reference	Cytotoxic NK cells	cell population	GNLY,PRF1,GZMB,FCGR3A		GNLY, PRF1, GZMB, FCGR3A
+14.9	14. Liver-specific immune-cell annotation reference	Hepatic CD8 T cells	cell population	CD3D,CD8A,CCL5,GZMK		CD3D, CD8A, CCL5, GZMK
+14.10	14. Liver-specific immune-cell annotation reference	Hepatic Treg cells	cell population	FOXP3,IL2RA,CTLA4		FOXP3, IL2RA, CTLA4
+14.11	14. Liver-specific immune-cell annotation reference	Hepatic MAIT cells	cell population	TRAV1-2,KLRB1,SLC4A10		TRAV1-2, KLRB1, SLC4A10
+14.12	14. Liver-specific immune-cell annotation reference	Hepatic γδ T cells	cell population	TRDC,TRGC1,TRGC2		TRDC, TRGC1, TRGC2
+14.13	14. Liver-specific immune-cell annotation reference	Liver cDC1	cell population	CLEC9A,XCR1,BATF3		CLEC9A, XCR1, BATF3
+14.14	14. Liver-specific immune-cell annotation reference	Liver cDC2	cell population	CD1C,FCER1A,CLEC10A		CD1C, FCER1A, CLEC10A
+14.15	14. Liver-specific immune-cell annotation reference	Liver neutrophils	cell population	FCGR3B,S100A8,S100A9,CSF3R		FCGR3B, S100A8, S100A9, CSF3R
+14.16	14. Liver-specific immune-cell annotation reference	Liver B cells	cell population	CD79A,CD79B,MS4A1		CD79A, CD79B, MS4A1
+14.17	14. Liver-specific immune-cell annotation reference	Liver plasma cells	cell population	JCHAIN,MZB1,XBP1		JCHAIN, MZB1, XBP1

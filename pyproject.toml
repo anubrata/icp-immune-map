@@ -1,0 +1,23 @@
+[project]
+name = "icp-immune-map"
+version = "0.1.0"
+description = "Genes that change between healthy and ICP pregnancies, with immune-gene tagging, published as a GitHub Pages dashboard."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydeseq2>=0.5",
+    "pandas>=2.2",
+    "numpy",
+    "scikit-learn",
+    "pyyaml",
+    "openpyxl",
+    "scipy>=1.17.1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# lets tests `import step1_load_data` etc. the same way the scripts import `common`
+pythonpath = ["analysis"]

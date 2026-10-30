@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ICP Immune Map</title>
+  <meta name="description" content="Genes and immune cell types that change between healthy pregnancies and intrahepatic cholestasis of pregnancy (ICP).">
+  <link rel="stylesheet" href="style.css">
+  <!-- Plotly draws the charts; app.js reads the data files written by analysis/step4_export_site_data.py -->
+  <script src="https://cdn.plot.ly/plotly-cartesian-2.35.2.min.js" charset="utf-8" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="page-header">
+    <div class="wrap">
+      <div class="title-row">
+        <div>
+          <h1>ICP Immune Map</h1>
+          <p class="subtitle">Genes and immune cell types that change between healthy pregnancies and intrahepatic cholestasis of pregnancy (ICP)</p>
+        </div>
+        <label class="dataset-picker">Dataset <select id="dataset-select"></select></label>
+      </div>
+      <p id="dataset-facts" class="facts"></p>
+      <p id="cutoff-note" class="note" hidden></p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <noscript><p class="error">This dashboard needs JavaScript.</p></noscript>
+    <p id="load-error" class="error" hidden></p>
+
+    <!-- Overview: the whole dataset (not affected by the filters) -->
+    <section class="tiles" aria-label="Summary">
+      <div class="tile">
+        <div class="tile-label">Genes tested</div>
+        <div class="tile-value" id="tile-tested">–</div>
+        <div class="tile-sub" id="tile-tested-sub"></div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Significant genes</div>
+        <div class="tile-value" id="tile-significant">–</div>
+        <div class="tile-sub" id="tile-significant-sub"></div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Immune-related significant genes</div>
+        <div class="tile-value" id="tile-immune">–</div>
+        <div class="tile-sub" id="tile-immune-sub"></div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Strongest immune cell-type signal (major lineages)</div>
+        <div class="tile-value name" id="tile-cell">–</div>
+        <div class="tile-sub" id="tile-cell-sub"></div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="immune-map-title">
+      <div class="card-head">
+        <div>
+          <h2 id="immune-map-title">Immune processes with changed genes</h2>
+          <p class="caption">ImmPort immune gene lists, ranked by how many significant genes they contain. Click a bar to show only that list's genes below.</p>
+        </div>
+        <button type="button" class="table-toggle" data-chart="immune-map-chart" data-table="immune-map-table">Show as table</button>
+      </div>
+      <div id="immune-map-chart" class="chart"></div>
+      <div id="immune-map-table" class="table-wrap" hidden></div>
+      <p id="immune-map-empty" class="empty" hidden>None of the significant genes is in an ImmPort immune gene list.</p>
+    </section>
+
+    <section class="card" id="cells-card" aria-labelledby="cells-title">
+      <div class="card-head">
+        <h2 id="cells-title">Immune cell types</h2>
+        <div class="tools">
+          <label>Atlas section <select id="cells-section"></select></label>
+          <button type="button" class="table-toggle" data-chart="cells-view" data-table="cells-table">Show as table</button>
+        </div>
+      </div>
+      <p class="caption" id="cells-caption"></p>
+      <div id="cells-view" class="cells-split">
+        <div id="cells-chart" class="chart"></div>
+        <div id="cell-detail" aria-live="polite" hidden>
+          <h3 id="cell-name"></h3>
+          <p id="cell-summary" class="caption"></p>
+          <div id="cell-chart" class="chart"></div>
+          <p class="caption">Each dot is one patient's score. Lines mark each group's median. ● female fetus, ◆ male fetus.</p>
+          <p id="cell-composition" class="caption"></p>
+          <h3>Marker genes</h3>
+          <ul id="cell-markers" class="chips"></ul>
+        </div>
+      </div>
+      <p id="cells-empty" class="empty" hidden>No population in this section has 2 or more marker genes among the tested genes.</p>
+      <div id="cells-table" class="table-wrap" hidden></div>
+    </section>
+
+    <!-- Filters: scope everything below this row -->
+    <section class="filters" aria-label="Filters for the gene views below">
+      <label>Search <input id="filter-search" type="search" placeholder="Gene symbol or description"></label>
+      <label>Direction
+        <select id="filter-direction">
+          <option value="all">Higher or lower</option>
+          <option value="up" id="option-up">Higher in ICP</option>
+          <option value="down" id="option-down">Lower in ICP</option>
+        </select>
+      </label>
+      <label><input id="filter-immune" type="checkbox"> Immune-related only</label>
+      <label>Immune annotation <select id="filter-list"><option value="">Any</option></select></label>
+      <button id="filter-reset" type="button">Reset</button>
+      <span id="filter-count" class="filter-count" aria-live="polite"></span>
+    </section>
+
+    <section class="card" aria-labelledby="arrows-title">
+      <h2 id="arrows-title">How expression moved from healthy to ICP</h2>
+      <p class="caption" id="arrows-caption"></p>
+      <div id="arrows-chart" class="chart"></div>
+      <p id="arrows-empty" class="empty" hidden>No genes match the filters.</p>
+    </section>
+
+    <div class="split">
+      <section class="card" aria-labelledby="table-title">
+        <div class="card-head">
+          <h2 id="table-title">Significant genes</h2>
+          <a id="csv-link" class="button" href="#">Download CSV</a>
+        </div>
+        <p class="caption">Click a gene to see each patient's values. ◆ = immune-related (ImmPort list or atlas cell marker).</p>
+        <div class="table-wrap">
+          <table id="gene-table">
+            <thead><tr></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <button id="table-more" type="button" class="table-more" hidden></button>
+        <p id="table-empty" class="empty" hidden>No genes match the filters.</p>
+      </section>
+
+      <section class="card detail" id="gene-detail" aria-live="polite">
+        <p id="detail-placeholder" class="empty">Select a gene in the table or chart.</p>
+        <div id="detail-body" hidden>
+          <div class="detail-head">
+            <h2 id="detail-symbol"></h2>
+            <span id="detail-renamed" class="muted"></span>
+            <span id="detail-immune" class="badge"></span>
+          </div>
+          <p id="detail-description" class="caption"></p>
+          <dl id="detail-stats" class="stats"></dl>
+          <div class="card-head">
+            <h3>Each patient</h3>
+            <button type="button" class="table-toggle" data-chart="detail-chart" data-table="detail-table">Show as table</button>
+          </div>
+          <div id="detail-chart" class="chart"></div>
+          <div id="detail-table" class="table-wrap" hidden></div>
+          <p class="caption">Normalized read counts (adjusted for sequencing depth). Lines mark each group's median. ● female fetus, ◆ male fetus.</p>
+          <h3>Immune processes (ImmPort)</h3>
+          <ul id="detail-lists" class="chips"></ul>
+          <h3>Immune cell markers (atlas)</h3>
+          <ul id="detail-cells" class="chips"></ul>
+          <p class="links" id="detail-links"></p>
+        </div>
+      </section>
+    </div>
+
+    <section class="card" aria-labelledby="heatmap-title">
+      <h2 id="heatmap-title">Expression pattern across patients</h2>
+      <p class="caption" id="heatmap-caption"></p>
+      <div id="heatmap-chart" class="chart"></div>
+      <p id="heatmap-empty" class="empty" hidden>No genes match the filters.</p>
+    </section>
+
+    <details class="card" id="qc">
+      <summary>Quality checks: samples, fetal sex and overall similarity</summary>
+      <p class="caption" id="qc-caption"></p>
+      <div id="pca-chart" class="chart"></div>
+      <div id="samples-table" class="table-wrap"></div>
+    </details>
+  </main>
+
+  <footer class="wrap">
+    <p><strong>Data and methods</strong></p>
+    <ul>
+      <li>Expression data: <span id="footer-geo"></span>, analysed with DESeq2 (Love, Huber &amp; Anders, <em>Genome Biology</em> 2014) via <a href="https://github.com/owkin/PyDESeq2">pydeseq2</a>.</li>
+      <li>Immune processes: <a href="https://docs.immport.org/apidocumentation/genelist/overview/">ImmPort gene lists</a>, curated from GO "immune system process" and Reactome "Immune System".</li>
+      <li>Immune cell markers: <span id="footer-atlas">Human Immune Cell Atlas (resources/human_immune_cell_atlas.docx in the repository)</span>. Its panels are candidate markers, not validated signatures.</li>
+      <li>Current gene symbols: <a href="https://www.genenames.org/">HGNC</a>.</li>
+    </ul>
+    <p id="footer-meta"></p>
+  </footer>
+</body>
+</html>

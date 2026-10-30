@@ -1,0 +1,57 @@
+# Dataset config: tells the analysis how to read one data file.
+# To add a dataset: put its file in data/, copy this file, and edit the values.
+
+id: GSE282182
+title: Placenta, ICP vs healthy pregnancy (bulk RNA-seq)
+geo_accession: GSE282182
+tissue: Placenta
+
+# The data file. .txt/.tsv/.csv/.xlsx, optionally compressed (.gz). Path is relative to the repo root.
+file: data/GSE282182_gene_count.txt.gz
+# Extra options passed to pandas for unusual layouts, e.g. {sep: ";", skiprows: 2}
+read_options: {}
+
+# Which column holds what. Only gene_id is required.
+columns:
+  gene_id: gene_id              # unique ID per row (here: Ensembl gene ID)
+  gene_symbol: gene_name        # gene symbol shown on the site
+  description: gene_description
+  chromosome: gene_chr
+  biotype: gene_biotype
+
+# Every sample column in the file -> its group.
+samples:
+  YC_N_2: Healthy
+  YC_N_7: Healthy
+  YC_Normal: Healthy
+  YC_N_3: Healthy
+  YC_N_5: Healthy
+  ICP_11_YCYY: ICP
+  YC_ICP_12: ICP
+  YC_ICP_1: ICP
+  YC_ICP_2: ICP
+  ICP_7: ICP
+
+reference_group: Healthy        # fold changes are compare_group relative to this group
+compare_group: ICP
+
+# Placenta is fetal tissue, and fetal sex differs between the groups here, so the model adjusts for it.
+# infer = call each sample's sex from chrY gene expression (step 1 prints the calls).
+# Alternatively list it per sample ({YC_N_2: F, ...}), or delete this line to skip the adjustment.
+fetal_sex: infer
+
+# Genes need at least this many reads in at least as many samples as the smallest group to be tested.
+min_count: 10
+
+# Optional (step 3): check each immune cell-type score against a tissue-composition signature.
+# Placenta samples contain varying amounts of decidua (maternal tissue rich in NK cells), which can
+# look like a change in immune cells. PRL and IGFBP1 mark decidualized stromal cells.
+composition_check:
+  name: Decidua
+  markers: [PRL, IGFBP1]
+
+# A gene is "significant" (and shown on the site) when it passes both cutoffs.
+# pvalue = unadjusted p-value. Use padj instead of pvalue for FDR-adjusted p-values.
+cutoffs:
+  pvalue: 0.05
+  abs_log2fc: 1.0               # 1 = at least 2-fold up or down
