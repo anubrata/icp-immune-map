@@ -22,6 +22,7 @@
   --div-high-1: #f5c4b2;
   --div-high-2: #df7249;
   --div-high-3: #9f3600;
+  --status-warning: #fab219;  /* status color: only ever paired with the ⚠ icon and a label */
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -251,6 +252,13 @@ th[aria-sort="descending"] button::after { content: " ↓"; }
 .chip-button[disabled] { cursor: default; color: var(--ink-muted); background: none; }
 h3 { font-size: 1rem; margin-top: 12px; }
 .links { color: var(--ink-2); }
+.warning {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--status-warning);
+  background: var(--page);
+  color: var(--ink-1);
+}
 
 /* ---------- quality checks ---------- */
 

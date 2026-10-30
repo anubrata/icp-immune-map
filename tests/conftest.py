@@ -21,6 +21,7 @@ MALE = {"H4", "I1", "I4", "I5"}  # like GSE282182: 1 of 5 healthy and 3 of 5 ICP
 
 # A gene that was renamed: the data file uses the old symbol, ImmPort and HGNC the new one.
 RENAMED_ID, OLD_SYMBOL, NEW_SYMBOL = "ENSG00000138658", "C4orf21", "ZGRF1"
+SEXFLIP_ID = "ENSG00000000003"  # changes in opposite directions in female and male placentas
 
 
 def gene_id(i: int) -> str:
@@ -65,6 +66,10 @@ def write_gse_like_file(path: Path, counts: pd.DataFrame) -> None:
     add("ENSG00000000001", [0] * 10, "SILENT", "2", "NA")
     add("ENSG00000000002", counts.iloc[len(counts) // 2].tolist(), "GENE1", "3", '"duplicated symbol, quoted"')
     add(RENAMED_ID, counts.iloc[1].tolist(), OLD_SYMBOL, "4", "zinc finger GRF-type containing 1")
+    # Like PTX3 in GSE282182: lower in ICP in female placentas, higher in male placentas. Since most
+    # ICP placentas are male, the plain averages say "higher" while the sex-adjusted model says "lower".
+    sexflip = {"H1": 600, "H2": 650, "H3": 700, "H4": 150, "H5": 580, "I1": 1200, "I2": 30, "I3": 35, "I4": 1100, "I5": 1250}
+    add(SEXFLIP_ID, [sexflip[s] for s in SAMPLES], "SEXFLIP", "5", "sex-dependent change")
     path.write_text("\n".join(lines) + "\n")
 
 
@@ -127,4 +132,5 @@ def pipeline_run(tmp_path_factory):
     step3_immune_annotation.run(config, results_root, resources)
     step4_export_site_data.run(config, results_root, site_data)
     return {"root": root, "config": config, "data_file": data_file, "results": results_root / "SYNTH",
-            "results_root": results_root, "site_data": site_data, "higher": higher, "lower": lower}
+            "results_root": results_root, "site_data": site_data, "resources": resources,
+            "higher": higher, "lower": lower}

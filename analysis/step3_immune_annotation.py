@@ -163,13 +163,18 @@ def lists_table(lists: dict[str, dict], annotated: pd.DataFrame) -> pd.DataFrame
 # ------------------------------------------------------- Part B: cell-type scores
 
 def symbol_lookup(annotated: pd.DataFrame) -> dict[str, str]:
-    """Gene symbol (current or as in the file) -> gene ID. If several genes share a symbol,
-    the most highly expressed one is used."""
-    lookup: dict[str, str] = {}
+    """Marker symbol -> the tested gene used for it in the cell-type scores.
+
+    A gene whose symbol in the data file matches exactly wins; a gene that only matches through
+    its current official symbol (renamed, or a former duplicate such as MRC1L1 -> MRC1) is the
+    fallback. If several genes qualify at the same level, the most highly expressed one is used.
+    """
     ranked = annotated.sort_values("baseMean", ascending=False)
-    for gene_id, current, original in zip(ranked.index, ranked["current_symbol"], ranked["gene_symbol"]):
-        lookup.setdefault(current, gene_id)
+    lookup: dict[str, str] = {}
+    for gene_id, original in zip(ranked.index, ranked["gene_symbol"]):
         lookup.setdefault(original, gene_id)
+    for gene_id, current in zip(ranked.index, ranked["current_symbol"]):
+        lookup.setdefault(current, gene_id)
     return lookup
 
 

@@ -57,7 +57,9 @@
       <div class="card-head">
         <div>
           <h2 id="immune-map-title">Immune processes with changed genes</h2>
-          <p class="caption">ImmPort immune gene lists, ranked by how many significant genes they contain. Click a bar to show only that list's genes below.</p>
+          <p class="caption">ImmPort immune gene lists, ranked by how many significant genes they contain. Higher/lower follows the
+            DESeq2 model (adjusted for fetal sex); ⚠ marks a list with a gene whose plain averages point the other way.
+            Click a bar to show only that list's genes below.</p>
         </div>
         <button type="button" class="table-toggle" data-chart="immune-map-chart" data-table="immune-map-table">Show as table</button>
       </div>
@@ -120,7 +122,8 @@
           <h2 id="table-title">Significant genes</h2>
           <a id="csv-link" class="button" href="#">Download CSV</a>
         </div>
-        <p class="caption">Click a gene to see each patient's values. ◆ = immune-related (ImmPort list or atlas cell marker).</p>
+        <p class="caption">Click a gene to see each patient's values. ◆ = immune-related (ImmPort list or atlas cell marker).
+          ⚠ = the plain group averages point the other way than the model; the gene panel explains why.</p>
         <div class="table-wrap">
           <table id="gene-table">
             <thead><tr></tr></thead>
@@ -141,6 +144,8 @@
           </div>
           <p id="detail-description" class="caption"></p>
           <dl id="detail-stats" class="stats"></dl>
+          <p id="detail-sex" class="caption"></p>
+          <p id="detail-warning" class="warning" role="note" hidden></p>
           <div class="card-head">
             <h3>Each patient</h3>
             <button type="button" class="table-toggle" data-chart="detail-chart" data-table="detail-table">Show as table</button>

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the whole analysis (steps 1-4) and build the website data in site/data/.
+# Run the whole analysis (steps 1-4), build the website data in site/data/, and cross-check it (step 5).
 #
 #   ./run_all.sh                          every dataset in config/
 #   ./run_all.sh config/GSE282182.yaml    just one dataset
@@ -19,6 +19,7 @@ for config in "$@"; do
   echo; echo "--- Step 2: differential expression"; uv run analysis/step2_differential_expression.py "$config"
   echo; echo "--- Step 3: immune annotation & cell types"; uv run analysis/step3_immune_annotation.py "$config"
   echo; echo "--- Step 4: export for the website";   uv run analysis/step4_export_site_data.py "$config"
+  echo; echo "--- Step 5: cross-check the website data"; uv run analysis/step5_check_site_data.py "$config"
   echo
 done
 

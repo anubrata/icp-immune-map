@@ -66,12 +66,31 @@ def ordered_samples(samples: pd.DataFrame, reference: str, compare: str) -> pd.D
 
 
 def group_means(normalized: pd.DataFrame, samples: pd.DataFrame) -> pd.DataFrame:
-    """Plain average of each gene's normalized counts in each group (genes x groups), for the CSV."""
+    """Plain average of each gene's normalized counts in each group (genes x groups)."""
     return normalized[samples.index].T.groupby(samples["group"], sort=False).mean().T
 
 
+def plain_changes(normalized: pd.DataFrame, samples: pd.DataFrame, reference: str, compare: str) -> pd.DataFrame:
+    """log2 ratio of plain averages (compare vs reference) for every gene: over all patients ("all")
+    and, when fetal sex is known, within female ("F") and within male ("M") placentas.
+    0.5 is added to both averages so a group average of 0 does not divide by zero."""
+    def log2_ratio(keep: pd.Series) -> pd.Series:
+        ref = samples.index[(samples["group"] == reference) & keep]
+        cmp = samples.index[(samples["group"] == compare) & keep]
+        if len(ref) == 0 or len(cmp) == 0:
+            return pd.Series(np.nan, index=normalized.index)
+        return np.log2((normalized[cmp].mean(axis=1) + 0.5) / (normalized[ref].mean(axis=1) + 0.5))
+
+    changes = pd.DataFrame({"all": log2_ratio(pd.Series(True, index=samples.index))})
+    if "fetal_sex" in samples:
+        for sex in ("F", "M"):
+            changes[sex] = log2_ratio(samples["fetal_sex"] == sex)
+    return changes
+
+
 def gene_records(significant: pd.DataFrame, normalized: pd.DataFrame, zscores: pd.DataFrame,
-                 estimates: pd.DataFrame, sample_order: list[str]) -> list[dict]:
+                 estimates: pd.DataFrame, plain_means: pd.DataFrame, plain: pd.DataFrame,
+                 sample_order: list[str]) -> list[dict]:
     records = []
     for gene_id, gene in significant.iterrows():
         records.append({
@@ -91,6 +110,11 @@ def gene_records(significant: pd.DataFrame, normalized: pd.DataFrame, zscores: p
             "atlas_markers": gene["atlas_markers"].split(";") if gene["atlas_markers"] else [],
             # model-estimated level per group: the arrow chart draws healthy -> ICP from these
             "group_estimates": {group: number(v, 4, significant_digits=True) for group, v in estimates.loc[gene_id].items()},
+            # plain averages, overall and within each fetal sex; flagged when they point the other way than the model
+            "plain_means": {group: number(v, 1) for group, v in plain_means.loc[gene_id].items()},
+            "plain_log2fc": number(plain.at[gene_id, "all"], 3),
+            "sex_log2fc": {sex: number(plain.at[gene_id, sex], 3) for sex in ("F", "M") if sex in plain},
+            "raw_disagrees": bool(plain.at[gene_id, "all"] * gene["log2FoldChange"] < 0),
             "normalized": [number(v, 1) for v in normalized.loc[gene_id, sample_order]],
             "z": [number(v, 2) for v in zscores.loc[gene_id, sample_order]],
         })
@@ -157,8 +181,8 @@ def cell_type_csv(scores: pd.DataFrame, composition: dict | None) -> pd.DataFram
 
 
 def significant_genes_csv(significant: pd.DataFrame, normalized: pd.DataFrame, estimates: pd.DataFrame,
-                          samples: pd.DataFrame, lists: pd.DataFrame, atlas_names: dict[str, str],
-                          compare: str) -> pd.DataFrame:
+                          plain: pd.DataFrame, samples: pd.DataFrame, lists: pd.DataFrame,
+                          atlas_names: dict[str, str], compare: str) -> pd.DataFrame:
     """Spreadsheet version of the significant genes, including each sample's normalized count."""
     log2fc = significant["log2FoldChange"]
     table = pd.DataFrame({"gene_id": significant.index, "symbol": significant["gene_symbol"],
@@ -184,6 +208,12 @@ def significant_genes_csv(significant: pd.DataFrame, normalized: pd.DataFrame, e
         table[f"{group} level (model estimate)"] = level.round(2)
     for group, mean in group_means(normalized.loc[significant.index], samples).items():
         table[f"{group} plain mean (normalized)"] = mean.round(1)
+    shown = plain.loc[significant.index]
+    table["log2 ratio of plain means"] = shown["all"].round(3)
+    for sex, label in (("F", "female"), ("M", "male")):
+        if sex in shown:
+            table[f"log2 ratio of plain means, {label} placentas"] = shown[sex].round(3)
+    table["plain means disagree with model"] = (shown["all"] * log2fc < 0)
     for sample, group in samples["group"].items():
         table[f"{sample} ({group}, normalized)"] = normalized.loc[significant.index, sample].round(1)
     return table.reset_index(drop=True)
@@ -224,6 +254,10 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
     significant = annotated[is_significant(annotated, cfg["cutoffs"])].sort_values("pvalue")
     sample_order = list(samples.index)
     zscores = row_zscores(vst.loc[significant.index])
+    plain_means = group_means(normalized.loc[significant.index], samples)
+    plain = plain_changes(normalized.loc[significant.index], samples, reference, compare)
+    sex_counts = (samples.groupby(["fetal_sex", "group"]).size().unstack(fill_value=0)
+                  if "fetal_sex" in samples else None)
 
     data = {
         "id": cfg["id"],
@@ -246,7 +280,10 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
                      "library_size": int(samples.at[sample, "library_size"]),
                      "pc1": number(pca.at[sample, "PC1"]),
                      "pc2": number(pca.at[sample, "PC2"])} for sample in sample_order],
-        "genes": gene_records(significant, normalized, zscores, estimates, sample_order),
+        "genes": gene_records(significant, normalized, zscores, estimates, plain_means, plain, sample_order),
+        # patients per fetal sex and group, e.g. {"F": {"Healthy": 4, "ICP": 2}, "M": {...}}
+        "sex_counts": None if sex_counts is None else {sex: {g: int(n) for g, n in row.items()}
+                                                       for sex, row in sex_counts.iterrows()},
         "immune_lists": immune_list_summary(significant, lists),
         "atlas_sections": list(dict.fromkeys(cell_scores["section"])),
         "atlas_populations": {pid: {"name": cell["population"], "section": cell["section"], "kind": cell["kind"]}
@@ -264,7 +301,7 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
     json_path.write_text(json.dumps(data, allow_nan=False, separators=(",", ":")) + "\n")
     csv_path = site_data_dir / f"{cfg['id']}_significant_genes.csv"
     atlas_names = cell_scores["population"].to_dict()
-    significant_genes_csv(significant, normalized, estimates, samples, lists, atlas_names, compare).to_csv(csv_path, index=False)
+    significant_genes_csv(significant, normalized, estimates, plain, samples, lists, atlas_names, compare).to_csv(csv_path, index=False)
     cell_csv_path = site_data_dir / f"{cfg['id']}_cell_type_scores.csv"
     cell_type_csv(cell_scores, cfg["composition_check"] if composition is not None else None).to_csv(cell_csv_path, index=False)
     write_dataset_index(site_data_dir)
@@ -273,6 +310,9 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
     print(f"Significant genes ({describe_cutoffs(cfg['cutoffs'])}): {len(significant)} "
           f"({higher} higher in {compare}, {len(significant) - higher} lower), "
           f"{int(significant['immune'].sum())} immune-related")
+    flagged = [g["symbol"] for g in data["genes"] if g["raw_disagrees"]]
+    print(f"Genes whose plain averages point the other way than the model (flagged on the site): "
+          f"{len(flagged)} {flagged}")
     print(f"Immune cell types: {len(data['cell_types'])} scored atlas populations exported")
     print(f"Wrote {show_path(json_path)}, {csv_path.name}, {cell_csv_path.name}, datasets.json")
 

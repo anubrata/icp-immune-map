@@ -19,21 +19,24 @@ data/<file>  +  config/<dataset>.yaml
         ├─ step 2  analysis/step2_differential_expression.py DESeq2 (pydeseq2): ICP vs healthy
         ├─ step 3  analysis/step3_immune_annotation.py       tag immune genes (ImmPort + atlas),
         │                                                    score immune cell types (atlas markers)
-        └─ step 4  analysis/step4_export_site_data.py        significant genes + cell types → site/data/*.json
+        ├─ step 4  analysis/step4_export_site_data.py        significant genes + cell types → site/data/*.json
+        └─ step 5  analysis/step5_check_site_data.py         recompute every number independently and compare
                                                                        │
 site/index.html + app.js + style.css  (a fixed page) ◄── reads ────────┘
 ```
 
 Each step is a short, commented script that can be run on its own and writes readable tables to
 `results/<dataset>/` (open them in Excel). The website itself is a fixed HTML page; only its data
-files in `site/data/` are generated.
+files in `site/data/` are generated. Step 5 recomputes everything the dashboard shows with its own code
+(significant genes, statistics, per-patient values, arrows, immune tags, bar counts, tiles, cell-type
+scores) and fails if anything differs beyond rounding, so a wrong number never gets published.
 
 ## Run it on your computer
 
 Install [uv](https://docs.astral.sh/uv/) once (it installs the right Python and packages for you), then:
 
 ```bash
-./run_all.sh                                        # steps 1-4 for every dataset in config/
+./run_all.sh                                        # steps 1-5 for every dataset in config/
 uv run python -m http.server --directory site 8000  # then open http://localhost:8000
 ```
 
@@ -68,7 +71,8 @@ Run the tests (synthetic data only) with `uv run pytest`.
 1. Create an empty **public** repository on GitHub and push this folder to its `main` branch.
 2. In the repository, open **Settings → Pages** and set **Source** to **GitHub Actions**.
 
-From then on, every push runs `.github/workflows/pages.yml`: it runs the tests, runs `./run_all.sh`, and publishes `site/`.
+From then on, every push runs `.github/workflows/pages.yml`: it runs the tests, runs `./run_all.sh` (including the step 5
+cross-check), and publishes `site/` only if all of that passes.
 
 ## Methods and caveats
 
@@ -81,8 +85,13 @@ From then on, every push runs `.github/workflows/pages.yml`: it runs the tests, 
   (|log2 fold change| ≥ 1). With ~17,000 genes tested, some genes pass this by chance, so treat the list as
   candidates; the FDR (adjusted p-value) is shown next to every gene. Cutoffs are set per dataset in its config.
 - **Arrow chart:** each arrow runs from the gene's level in healthy to its level in ICP as estimated by the DESeq2
-  model, with fetal sex held at the cohort average, so it always matches the fold change in the table. Plain averages
-  can point the other way when the groups' fetal-sex mix differs; each patient's actual values are in the gene panel.
+  model, with fetal sex held at the cohort average, so it always matches the fold change in the table. Each patient's
+  actual values are in the gene panel.
+- **⚠ genes:** directions (and the immune-process bar counts) follow the model. For a few genes the plain group averages
+  point the other way, because the gene changes in opposite directions in female and male placentas and the groups have
+  different fetal-sex mixes. In GSE282182 these are PTX3 (counted as lower in "Neutrophil degranulation") and ELFN1.
+  They are marked ⚠, and the gene panel shows the change within each fetal sex. Note the healthy group has only one
+  male placenta, so male-specific changes rest on a single sample.
 - **Small study:** 5 vs 5 samples. In this dataset the overall difference between the groups is subtle
   (see "Quality checks" on the site).
 - **Immune genes:** a gene is tagged immune-related if it is in any of ImmPort's ~150 immune gene lists (curated from
@@ -104,7 +113,7 @@ From then on, every push runs `.github/workflows/pages.yml`: it runs the tests, 
 
 | Path | What it is |
 | --- | --- |
-| `analysis/` | The four analysis steps, the step 0 scripts that prepare the reference files, and shared helpers |
+| `analysis/` | Steps 1–5, the step 0 scripts that prepare the reference files, and shared helpers |
 | `config/` | One YAML file per dataset |
 | `data/` | Raw data files |
 | `resources/` | ImmPort immune gene lists, HGNC symbol table, the Human Immune Cell Atlas and its marker table (see `resources/README.md`) |

@@ -21,7 +21,7 @@ def test_loads_the_gse282182_layout(gse_like):
     folder, data_file = gse_like
     counts, genes, samples = load_dataset(load_config(write_config(folder / "c.yaml", data_file)))
     assert list(counts.columns) == SAMPLES
-    assert len(counts) == 30 + 6
+    assert len(counts) == 30 + 7
     assert (counts.dtypes == "int64").all()
     assert genes.loc["ENSG00000000002", "description"] == "duplicated symbol, quoted"  # quotes removed
     assert genes["gene_symbol"].tolist().count("GENE1") == 2  # duplicated symbols are fine, IDs are unique

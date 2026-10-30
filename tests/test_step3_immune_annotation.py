@@ -3,7 +3,16 @@ import pandas as pd
 
 from common import read_tsv
 from conftest import NEW_SYMBOL, OLD_SYMBOL, RENAMED_ID, gene_id, write_resources
-from step3_immune_annotation import annotate_immune, read_atlas, read_gmt, read_hgnc
+from step3_immune_annotation import annotate_immune, read_atlas, read_gmt, read_hgnc, symbol_lookup
+
+
+def test_marker_lookup_prefers_the_exact_symbol():
+    """MRC1 must use the row named MRC1, not the more expressed former duplicate MRC1L1 (now also MRC1)."""
+    genes = pd.DataFrame({"gene_symbol": ["MRC1", "MRC1L1", "C4orf21"], "current_symbol": ["MRC1", "MRC1", "ZGRF1"],
+                          "baseMean": [123.0, 446.0, 50.0]}, index=["exact", "former_duplicate", "renamed"])
+    lookup = symbol_lookup(genes)
+    assert lookup["MRC1"] == "exact"
+    assert lookup["ZGRF1"] == "renamed"          # renamed genes are still found through the current symbol
 
 
 def test_reads_gmt_lists_with_their_ids(tmp_path):

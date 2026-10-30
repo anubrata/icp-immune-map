@@ -66,7 +66,7 @@ const fmt = {
 
 const byPvalue = (a, b) => a.pvalue - b.pvalue;
 const isImmune = (gene) => gene.immune;
-const geneLabel = (gene) => gene.symbol + (isImmune(gene) ? " ◆" : "");
+const geneLabel = (gene) => gene.symbol + (isImmune(gene) ? " ◆" : "") + (gene.raw_disagrees ? " ⚠" : "");
 const shorten = (text, max) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 const sexName = (sex) => ({ F: "female", M: "male" }[sex] ?? "unknown");
 /** Atlas IDs sort by number: 1.2 before 1.10. */
@@ -327,6 +327,8 @@ function renderTiles() {
 function renderImmuneMap() {
   const d = state.data, cmp = d.compare_group;
   const lists = d.immune_lists.slice(0, TOP_IMMUNE_LISTS).reverse();  // Plotly draws the first row at the bottom
+  // genes counted in a list whose plain averages point the other way than the model (⚠)
+  const flagged = (l) => d.genes.filter((g) => g.raw_disagrees && g.immune_lists.includes(l.id)).map((g) => g.symbol);
   $("immune-map-empty").hidden = lists.length > 0;
   $("immune-map-table").replaceChildren(simpleTable([
     ["Immune gene list", (l) => h("a", { href: l.url, target: "_blank", rel: "noopener" }, l.name)],
@@ -334,13 +336,18 @@ function renderImmuneMap() {
     [`Higher in ${cmp}`, (l) => l.higher, true],
     [`Lower in ${cmp}`, (l) => l.lower, true],
     ["List genes tested", (l) => `${l.genes_tested} of ${l.genes_in_list}`, true],
+    ["⚠ genes", (l) => flagged(l).join(", ") || "–"],
   ], d.immune_lists));
   if (!lists.length) return clearChart("immune-map-chart");
 
   const rows = lists.map((_, i) => i);
-  const custom = lists.map((l) => [plotlyText(l.name), l.higher, l.lower, l.genes_tested, l.genes_in_list, l.id]);
+  const custom = lists.map((l) => {
+    const odd = flagged(l);
+    return [plotlyText(l.name), l.higher, l.lower, l.genes_tested, l.genes_in_list, l.id,
+            odd.length ? `<br>⚠ ${plotlyText(odd.join(", "))}: plain averages point the other way (see gene panel)` : ""];
+  });
   const hover = `<b>%{customdata[0]}</b><br>%{customdata[1]} higher, %{customdata[2]} lower in ${plotlyText(cmp)}`
-    + "<br>%{customdata[3]} of the list's %{customdata[4]} genes were tested<extra></extra>";
+    + "<br>%{customdata[3]} of the list's %{customdata[4]} genes were tested%{customdata[6]}<extra></extra>";
   const bars = (name, values, color) => ({
     type: "bar", orientation: "h", name, y: rows, x: values, customdata: custom, hovertemplate: hover,
     marker: { color, cornerradius: 4 }, text: values.map((v) => (v ? Math.abs(v) : "")),
@@ -362,8 +369,8 @@ function renderImmuneMap() {
     showlegend: true,
     xaxis: axis("Significant genes", { range: [-most * 1.3, most * 1.3], tickvals: ticks,
                                         ticktext: ticks.map((t) => String(Math.abs(t))), zeroline: true }),
-    yaxis: axis("", { tickvals: rows, ticktext: lists.map((l) => shorten(l.name, labelLength)), showgrid: false,
-                      tickfont: { color: token("--ink-2") } }),
+    yaxis: axis("", { tickvals: rows, ticktext: lists.map((l) => shorten(l.name, labelLength) + (flagged(l).length ? " ⚠" : "")),
+                      showgrid: false, tickfont: { color: token("--ink-2") } }),
   }), (event) => {
     const listId = event.points?.[0]?.customdata?.[5];
     if (!listId) return;
@@ -570,7 +577,7 @@ function renderArrows(genes) {
     + `arrow points to its level in ${cmp} patients (orange): right means higher in ${cmp}, left means lower. Levels are `
     + "the DESeq2 model's estimates with fetal sex held at the cohort average, so each arrow is the fold change in the "
     + `table; click a gene to see every patient's actual value. Showing the ${top.length} most significant of `
-    + `${genes.length} genes; ◆ marks immune-related genes.`;
+    + `${genes.length} genes; ◆ marks immune-related genes, ⚠ genes whose plain averages point the other way.`;
   if (!top.length) return clearChart("arrows-chart");
 
   const rows = top.map((_, i) => i);
@@ -662,6 +669,7 @@ function geneRow(g) {
   },
   h("td", {}, h("div", { class: "gene-name" }, g.symbol), g.description ? h("div", { class: "gene-desc" }, g.description) : null),
   h("td", { class: "num" }, h("span", { class: `swatch ${g.log2fc > 0 ? "higher" : "lower"}` }), fmt.fold(g.log2fc),
+    g.raw_disagrees ? h("span", { title: "Plain averages point the other way; see the gene panel" }, " ⚠") : null,
     h("div", { class: "muted" }, `log2 ${fmt.log2fc(g.log2fc)}`)),
   h("td", { class: "num" }, fmt.p(g.pvalue)),
   h("td", { class: "num" }, fmt.p(g.padj)),
@@ -704,6 +712,21 @@ function renderDetail() {
     ["Type", gene.biotype?.replaceAll("_", " ") ?? "–"],
   ];
   $("detail-stats").replaceChildren(...stats.map(([term, value]) => h("div", {}, h("dt", {}, term), h("dd", {}, value))));
+
+  // the change within each fetal sex, from plain averages
+  const bySex = [["F", "female"], ["M", "male"]].filter(([sex]) => gene.sex_log2fc?.[sex] != null).map(([sex, label]) => {
+    const n = d.sex_counts?.[sex] ?? {};
+    return `${label} placentas (${n[ref] ?? 0} ${ref} vs ${n[cmp] ?? 0} ${cmp}): ${fmt.fold(gene.sex_log2fc[sex])}`;
+  });
+  $("detail-sex").textContent = bySex.length ? `By fetal sex, plain averages: ${bySex.join(" · ")}.` : "";
+  $("detail-warning").hidden = !gene.raw_disagrees;
+  $("detail-warning").replaceChildren(...(gene.raw_disagrees ? [
+    h("strong", {}, "⚠ Plain averages point the other way. "),
+    `Averaged over all patients, ${gene.symbol} reads ${fmt.count(gene.plain_means[cmp])} in ${cmp} vs `
+    + `${fmt.count(gene.plain_means[ref])} in ${ref}, which looks ${gene.plain_log2fc > 0 ? "higher" : "lower"} in ${cmp}. `
+    + `The change differs between female and male placentas and the groups have different fetal-sex mixes, so the `
+    + `model compares like with like by adjusting for fetal sex: ${fmt.fold(gene.log2fc)} in ${cmp}. Treat this gene with caution.`,
+  ] : []));
 
   $("detail-lists").replaceChildren(...(gene.immune_lists.length
     ? gene.immune_lists.map((id) => {
