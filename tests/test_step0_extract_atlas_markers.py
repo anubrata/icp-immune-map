@@ -3,7 +3,7 @@ import zipfile
 import pandas as pd
 
 from common import RESOURCES_DIR
-from step0_extract_atlas_markers import extract, parse_markers
+from step0_extract_atlas_markers import ATLAS_FILE, extract, parse_markers
 
 NAMESPACE = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
 
@@ -36,6 +36,26 @@ def test_extracts_each_table_row_under_its_section(tmp_path):
     assert markers.loc[2, "section"] == "13. Common immune-cell functional states across lineages"
 
 
+def test_reads_the_plain_text_export(tmp_path):
+    """Word's plain-text export: UTF-16, one table cell per line, wrapped paragraphs, invisible marks."""
+    text = "\r\n".join([
+        "Human Immune Cell Atlas: Gene Markers", "for Cell Types and Functional States",
+        "‎1. Pan-immune and major lineage markers", "Cell population", "Representative genes",
+        "NK cells", "NKG7, GNLY, KLRD1", "Double-negative αβ T cells", "CD3D, CD3E, TRAC with low CD4/CD8A/CD8B",
+        "Note: these are candidate panels and several", "categories overlap.",
+        "13. Common immune-cell functional states across lineages", "State", "Representative genes",
+        "Cytotoxicity", "PRF1, GZMB", "15. Recommended annotation procedure",
+        "‎1.‎\tIdentify major cell lineages using multiple gene markers.", ""])
+    path = tmp_path / "atlas.txt"
+    path.write_bytes(text.encode("utf-16"))
+
+    markers = extract(path)
+    assert markers["population_id"].tolist() == ["1.1", "1.2", "13.1"]
+    assert markers["population"].tolist() == ["NK cells", "Double-negative αβ T cells", "Cytotoxicity"]
+    assert markers.loc[1, "markers"] == "CD3D,CD3E,TRAC" and markers.loc[1, "low_markers"] == "CD4,CD8A,CD8B"
+    assert markers["kind"].tolist() == ["cell population", "cell population", "functional state"]
+
+
 def test_low_markers_and_notes_are_separated():
     assert parse_markers("KLRC2, FCER1G-low, ZBTB16-low") == (["KLRC2"], ["FCER1G", "ZBTB16"])
     assert parse_markers("CD3D, CD3E, TRAC with low CD4/CD8A/CD8B") == (["CD3D", "CD3E", "TRAC"], ["CD4", "CD8A", "CD8B"])
@@ -44,5 +64,5 @@ def test_low_markers_and_notes_are_separated():
 
 def test_committed_marker_table_is_up_to_date_with_the_atlas():
     saved = pd.read_csv(RESOURCES_DIR / "immune_cell_markers.tsv", sep="\t", dtype=str, keep_default_na=False)
-    fresh = extract(RESOURCES_DIR / "human_immune_cell_atlas.docx")
+    fresh = extract(ATLAS_FILE)
     pd.testing.assert_frame_equal(saved, fresh)

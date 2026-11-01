@@ -6,10 +6,12 @@ and |log2 fold change| >= 1, i.e. at least 2-fold higher or lower in ICP). Only 
 are written for the website.
 
 Immune cell-type scores (step 3) are exported for every scored atlas population, since they
-are computed from all tested genes, not only the significant ones.
+are computed from all tested genes, not only the significant ones. For the "immune cells and
+their changed marker genes" grid, every atlas cell population with at least one significant
+marker gene is listed with those genes.
 
-Inputs:  results/<dataset>/de_all_genes_annotated.tsv, immune_lists.tsv, cell_type_scores.tsv,
-         cell_type_patient_scores.tsv, composition_score.tsv (if any)       (from step 3)
+Inputs:  results/<dataset>/de_all_genes_annotated.tsv, cell_type_scores.tsv, cell_type_patient_scores.tsv,
+         composition_score.tsv (if any), immune_lists.tsv (ImmPort on)      (from step 3)
          results/<dataset>/group_estimates.tsv, normalized_counts.tsv, vst.tsv, pca.tsv,
          step2_info.json                                                    (from step 2)
          results/<dataset>/samples.tsv                                      (from step 1)
@@ -33,7 +35,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from common import (RESULTS_ROOT, SITE_DATA_DIR, describe_cutoffs, is_significant, load_config, read_tsv,
+from common import (RESULTS_ROOT, SITE_DATA_DIR, describe_cutoffs, expression_files, is_significant, load_config, read_tsv,
                     results_dir, row_zscores, show_path, step_arguments)
 
 
@@ -106,7 +108,7 @@ def gene_records(significant: pd.DataFrame, normalized: pd.DataFrame, zscores: p
             "pvalue": number(gene["pvalue"], 3, significant_digits=True),
             "padj": number(gene["padj"], 3, significant_digits=True),
             "immune": bool(gene["immune"]),
-            "immune_lists": gene["immune_lists"].split(";") if gene["immune_lists"] else [],
+            "immune_lists": gene["immune_lists"].split(";") if gene.get("immune_lists") else [],  # ImmPort (if on)
             "atlas_markers": gene["atlas_markers"].split(";") if gene["atlas_markers"] else [],
             # model-estimated level per group: the arrow chart draws healthy -> ICP from these
             "group_estimates": {group: number(v, 4, significant_digits=True) for group, v in estimates.loc[gene_id].items()},
@@ -119,6 +121,28 @@ def gene_records(significant: pd.DataFrame, normalized: pd.DataFrame, zscores: p
             "z": [number(v, 2) for v in zscores.loc[gene_id, sample_order]],
         })
     return records
+
+
+def population_order(population_id: str) -> tuple:
+    """Sort atlas IDs like '1.2' < '1.10' < '2.1'."""
+    return tuple(int(part) for part in population_id.split("."))
+
+
+def cell_marker_changes(significant: pd.DataFrame, populations: pd.DataFrame) -> list[dict]:
+    """Each atlas cell population (not functional state) with at least one significant marker gene,
+    with those genes, in atlas order."""
+    genes_of = {}
+    for gene_id, markers in zip(significant.index, significant["atlas_markers"]):
+        for population_id in filter(None, markers.split(";")):
+            if populations.at[population_id, "kind"] == "cell population":
+                genes_of.setdefault(population_id, []).append(gene_id)
+    return [{"id": pid,
+             "name": populations.at[pid, "population"],
+             "section": populations.at[pid, "section"],
+             "markers_in_panel": int(populations.at[pid, "n_markers"]),
+             "markers_tested": int(populations.at[pid, "n_found"]),
+             "genes": genes_of[pid]}
+            for pid in sorted(genes_of, key=population_order)]
 
 
 def immune_list_summary(significant: pd.DataFrame, lists: pd.DataFrame) -> list[dict]:
@@ -181,7 +205,7 @@ def cell_type_csv(scores: pd.DataFrame, composition: dict | None) -> pd.DataFram
 
 
 def significant_genes_csv(significant: pd.DataFrame, normalized: pd.DataFrame, estimates: pd.DataFrame,
-                          plain: pd.DataFrame, samples: pd.DataFrame, lists: pd.DataFrame,
+                          plain: pd.DataFrame, samples: pd.DataFrame, lists: pd.DataFrame | None,
                           atlas_names: dict[str, str], compare: str) -> pd.DataFrame:
     """Spreadsheet version of the significant genes, including each sample's normalized count."""
     log2fc = significant["log2FoldChange"]
@@ -199,11 +223,12 @@ def significant_genes_csv(significant: pd.DataFrame, normalized: pd.DataFrame, e
         "pvalue": significant["pvalue"],
         "padj": significant["padj"],
         "immune_related": significant["immune"],
-        "immune_lists": ["; ".join(lists.at[i, "name"] for i in m.split(";")) if m else ""
-                         for m in significant["immune_lists"]],
         "immune_cell_markers": ["; ".join(atlas_names[i] for i in m.split(";")) if m else ""
                                 for m in significant["atlas_markers"]],
     })
+    if lists is not None:
+        table["immport_lists"] = ["; ".join(lists.at[i, "name"] for i in m.split(";")) if m else ""
+                                  for m in significant["immune_lists"]]
     for group, level in estimates.loc[significant.index].items():
         table[f"{group} level (model estimate)"] = level.round(2)
     for group, mean in group_means(normalized.loc[significant.index], samples).items():
@@ -237,16 +262,18 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
     reference, compare = cfg["reference_group"], cfg["compare_group"]
 
     annotated = read_tsv(folder / "de_all_genes_annotated.tsv")
-    annotated[["immune_lists", "atlas_markers"]] = annotated[["immune_lists", "atlas_markers"]].fillna("")
-    lists = read_tsv(folder / "immune_lists.tsv")
+    id_columns = [c for c in ("atlas_markers", "immune_lists") if c in annotated]
+    annotated[id_columns] = annotated[id_columns].fillna("")
+    lists = read_tsv(folder / "immune_lists.tsv") if cfg["use_immport"] else None
     cell_scores = read_tsv(folder / "cell_type_scores.tsv")
     cell_scores[["markers", "markers_found", "marker_gene_ids"]] = cell_scores[["markers", "markers_found", "marker_gene_ids"]].fillna("")
     patient_scores = read_tsv(folder / "cell_type_patient_scores.tsv")
     composition_path = folder / "composition_score.tsv"
     composition = read_tsv(composition_path)["score"] if composition_path.exists() else None
-    normalized = read_tsv(folder / "normalized_counts.tsv")
+    normalized_file, log_file = expression_files(cfg)
+    normalized = read_tsv(folder / normalized_file)
     estimates = read_tsv(folder / "group_estimates.tsv")
-    vst = read_tsv(folder / "vst.tsv")
+    vst = read_tsv(folder / log_file)  # log-scale expression (VST for counts, log2 for arrays)
     pca = read_tsv(folder / "pca.tsv")
     samples = ordered_samples(read_tsv(folder / "samples.tsv"), reference, compare)
     info = json.loads((folder / "step2_info.json").read_text())
@@ -267,7 +294,10 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
         "reference_group": reference,
         "compare_group": compare,
         "method": info["method"],
-        "software": f"pydeseq2 {info['pydeseq2_version']}",
+        "software": info["software"],
+        "data_type": cfg["data_type"],
+        "measure": info["measure"],  # "read count" or "intensity"
+        "chr_y_genes_excluded": info["chr_y_genes_excluded"],
         "design": info["design"],
         "cutoffs": cfg["cutoffs"],
         "genes_in_file": info["genes_in_file"],
@@ -277,14 +307,16 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
         "samples": [{"id": sample,
                      "group": samples.at[sample, "group"],
                      "fetal_sex": samples.at[sample, "fetal_sex"] if "fetal_sex" in samples else None,
-                     "library_size": int(samples.at[sample, "library_size"]),
+                     "library_size": int(samples.at[sample, "library_size"]) if "library_size" in samples else None,
                      "pc1": number(pca.at[sample, "PC1"]),
                      "pc2": number(pca.at[sample, "PC2"])} for sample in sample_order],
         "genes": gene_records(significant, normalized, zscores, estimates, plain_means, plain, sample_order),
         # patients per fetal sex and group, e.g. {"F": {"Healthy": 4, "ICP": 2}, "M": {...}}
         "sex_counts": None if sex_counts is None else {sex: {g: int(n) for g, n in row.items()}
                                                        for sex, row in sex_counts.iterrows()},
-        "immune_lists": immune_list_summary(significant, lists),
+        "immport": lists is not None,
+        "immune_lists": immune_list_summary(significant, lists) if lists is not None else [],
+        "cell_marker_changes": cell_marker_changes(significant, cell_scores),
         "atlas_sections": list(dict.fromkeys(cell_scores["section"])),
         "atlas_populations": {pid: {"name": cell["population"], "section": cell["section"], "kind": cell["kind"]}
                               for pid, cell in cell_scores.iterrows()},

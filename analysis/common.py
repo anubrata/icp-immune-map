@@ -17,6 +17,16 @@ RESULTS_ROOT = REPO_ROOT / "results"
 RESOURCES_DIR = REPO_ROOT / "resources"
 SITE_DATA_DIR = REPO_ROOT / "site" / "data"
 
+# The kinds of data the pipeline can analyse (config `data_type`):
+#   counts      RNA-seq raw read counts, one table          -> DESeq2
+#   microarray  Agilent one-color arrays, one file per sample -> limma-style moderated t-test
+DATA_TYPES = ("counts", "microarray")
+
+# Expression tables written by step 2: (normalized values on the original scale, log-scale values
+# used for the heatmap, PCA and cell-type scores)
+EXPRESSION_FILES = {"counts": ("normalized_counts.tsv", "vst.tsv"),
+                    "microarray": ("normalized_intensities.tsv", "log2_intensities.tsv")}
+
 
 class ConfigError(ValueError):
     """The dataset config is missing something or contradicts itself."""
@@ -36,11 +46,21 @@ def load_config(path: str | Path) -> dict:
         if not condition:
             raise ConfigError(f"{path}: {message}")
 
-    for key in ("id", "file", "columns", "samples", "reference_group", "compare_group"):
+    for key in ("id", "samples", "reference_group", "compare_group"):
         require(key in cfg, f"missing required setting '{key}'")
-    require("gene_id" in (cfg["columns"] or {}), "columns.gene_id is required")
     require(isinstance(cfg["samples"], dict) and len(cfg["samples"]) > 0,
-            "samples must map each sample column to its group")
+            "samples must map each sample to its group")
+    data_type = cfg.setdefault("data_type", "counts")
+    require(data_type in DATA_TYPES, f"data_type must be one of {DATA_TYPES}")
+    if data_type == "counts":
+        for key in ("file", "columns"):
+            require(key in cfg, f"missing required setting '{key}' (needed for data_type: counts)")
+        require("gene_id" in (cfg["columns"] or {}), "columns.gene_id is required")
+    else:
+        for key in ("files", "platform_annotation"):
+            require(key in cfg, f"missing required setting '{key}' (needed for data_type: microarray)")
+        require(isinstance(cfg["files"], dict) and set(cfg["files"]) == set(cfg["samples"]),
+                "files must give one data file for every sample in samples")
 
     groups = set(cfg["samples"].values())
     for key in ("reference_group", "compare_group"):
@@ -54,6 +74,10 @@ def load_config(path: str | Path) -> dict:
     else:
         require(fetal_sex in (None, "infer"),
                 "fetal_sex must be 'infer', a map of sample -> M/F, or left out")
+    require(not (fetal_sex == "infer" and data_type == "microarray"),
+            "fetal_sex: infer only works for RNA-seq counts; list each array's fetal sex instead")
+    cfg.setdefault("adjust_for_fetal_sex", True)
+    require(isinstance(cfg["adjust_for_fetal_sex"], bool), "adjust_for_fetal_sex must be true or false")
 
     cutoffs = cfg.setdefault("cutoffs", {}) or {}
     require(not ("pvalue" in cutoffs and "padj" in cutoffs),
@@ -62,6 +86,9 @@ def load_config(path: str | Path) -> dict:
         cutoffs.setdefault("pvalue", 0.05)
     cutoffs.setdefault("abs_log2fc", 1.0)
     cfg["cutoffs"] = cutoffs
+
+    cfg.setdefault("use_immport", False)
+    require(isinstance(cfg["use_immport"], bool), "use_immport must be true or false")
 
     composition = cfg.setdefault("composition_check", None)
     if composition is not None:
@@ -76,10 +103,20 @@ def load_config(path: str | Path) -> dict:
     return cfg
 
 
-def data_path(cfg: dict) -> Path:
-    """The dataset file. Relative paths in the config are relative to the repository root."""
-    path = Path(cfg["file"])
+def repo_path(path: str | Path) -> Path:
+    """Paths in the configs are relative to the repository root (absolute paths are kept)."""
+    path = Path(path)
     return path if path.is_absolute() else REPO_ROOT / path
+
+
+def data_path(cfg: dict) -> Path:
+    """The dataset file of a counts dataset."""
+    return repo_path(cfg["file"])
+
+
+def expression_files(cfg: dict) -> tuple[str, str]:
+    """Names of step 2's (normalized, log-scale) expression tables for this dataset's data type."""
+    return EXPRESSION_FILES[cfg["data_type"]]
 
 
 def results_dir(cfg: dict, results_root: Path = RESULTS_ROOT) -> Path:

@@ -36,19 +36,26 @@ def test_exports_only_significant_genes(pipeline_run):
         assert abs(math.log2(levels["ICP"] / levels["Healthy"]) - gene["log2fc"]) < 0.01
 
 
-def test_immune_tags_reach_the_site(pipeline_run):
+def test_immune_cells_and_their_changed_marker_genes(pipeline_run):
     data = strict_json(pipeline_run["site_data"] / "SYNTH.json")
-    renamed = next(g for g in data["genes"] if g["id"] == RENAMED_ID)
-    assert renamed["current_symbol"] == "ZGRF1"
-    assert renamed["immune_lists"] == ["GO:0002218"]
-    lists = {entry["id"]: entry for entry in data["immune_lists"]}
-    assert lists["GO:0002218"]["higher"] >= 2  # GENE0 and the renamed gene are planted "higher" genes
+    assert data["immport"] is False and data["immune_lists"] == []      # ImmPort is off by default
+    genes = {g["id"]: g for g in data["genes"]}
+    renamed = genes[RENAMED_ID]
+    assert renamed["current_symbol"] == "ZGRF1" and renamed["atlas_markers"] == ["1.3"]
+    assert renamed["immune"] and renamed["immune_lists"] == []
+
+    grid = {c["id"]: c for c in data["cell_marker_changes"]}
+    assert "13.1" not in grid                                             # functional states are not cell types
+    assert grid["1.3"]["name"] == "Renamed-marker cells" and grid["1.3"]["genes"] == [RENAMED_ID]
+    assert grid["1.1"]["genes"] and set(grid["1.1"]["genes"]) <= {gene_id(i) for i in (0, 2, 3, 4)}
+    assert all(set(c["genes"]) <= set(genes) for c in grid.values())     # only significant genes
+    assert list(grid) == sorted(grid, key=lambda i: tuple(map(int, i.split("."))))  # atlas order
 
 
 def test_cell_types_reach_the_site(pipeline_run):
     data = strict_json(pipeline_run["site_data"] / "SYNTH.json")
     assert data["atlas_sections"] == ["1. Major lineages", "13. Common immune-cell functional states across lineages"]
-    assert [c["id"] for c in data["cell_types"]] == ["1.1", "1.2", "13.1"]  # "1.10" has too few markers
+    assert [c["id"] for c in data["cell_types"]] == ["1.1", "1.2", "1.3", "13.1"]  # "1.10" has too few markers
     planted = data["cell_types"][0]
     assert [m["symbol"] for m in planted["markers"]] == ["GENE0", "GENE2", "GENE3", "GENE4"]
     assert planted["effect"] > 1 and planted["ci"][0] > 0 and len(planted["scores"]) == 10
@@ -68,6 +75,7 @@ def test_csv_and_dataset_index(pipeline_run):
     table = pd.read_csv(pipeline_run["site_data"] / "SYNTH_significant_genes.csv")
     assert len(table) == len(data["genes"])
     assert "H1 (Healthy, normalized)" in table.columns
+    assert "immune_cell_markers" in table and "immport_lists" not in table
     index = strict_json(pipeline_run["site_data"] / "datasets.json")
     assert index == [{"id": "SYNTH", "title": "Synthetic test data", "tissue": "Placenta",
                       "file": "SYNTH.json", "significant_genes": len(data["genes"])}]
@@ -78,7 +86,7 @@ def test_no_significant_genes_still_exports(pipeline_run, tmp_path):
                           cutoffs={"padj": 1e-300, "abs_log2fc": 50})
     step4_export_site_data.run(strict, pipeline_run["results_root"], tmp_path)
     data = strict_json(tmp_path / "SYNTH.json")
-    assert data["genes"] == [] and data["immune_lists"] == []
+    assert data["genes"] == [] and data["immune_lists"] == [] and data["cell_marker_changes"] == []
     assert data["cutoffs"] == {"padj": 1e-300, "abs_log2fc": 50}
 
 

@@ -7,9 +7,10 @@ the results with site/data/<dataset>.json. Any difference beyond rounding is a F
 exits with an error, so GitHub Actions stops before publishing a broken site.
 
 Checked: which genes are significant; their fold change, p-value, FDR and mean count; per-patient
-values; heatmap values; arrow-chart levels; ImmPort and atlas tags and the immune-related flag; the
-immune-process bars; the summary-tile inputs; every immune cell-type score with its p-value and FDR;
-and the flags for genes whose plain averages point the other way than the model.
+values; heatmap values; arrow-chart levels; atlas tags (and ImmPort tags when on) and the
+immune-related flag; the immune cells x marker genes grid (and ImmPort bars when on); the
+summary-tile inputs; every immune cell-type score with its p-value and FDR; and the flags for genes
+whose plain averages point the other way than the model.
 
 Run:  uv run analysis/step5_check_site_data.py config/GSE282182.yaml
 """
@@ -26,7 +27,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from common import RESOURCES_DIR, RESULTS_ROOT, SITE_DATA_DIR, load_config, read_tsv, results_dir, step_arguments
+from common import (RESOURCES_DIR, RESULTS_ROOT, SITE_DATA_DIR, expression_files, load_config, read_tsv, results_dir,
+                    step_arguments)
 
 EPS = 1e-9  # room for floating-point noise on top of the rounding used in the export
 
@@ -110,7 +112,8 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
     folder, resources_dir = results_dir(cfg, results_root), Path(resources_dir)
     site = json.loads((Path(site_data_dir) / f"{cfg['id']}.json").read_text())
     de = read_tsv(folder / "de_all_genes.tsv")
-    normalized, vst = read_tsv(folder / "normalized_counts.tsv"), read_tsv(folder / "vst.tsv")
+    normalized_file, log_file = expression_files(cfg)
+    normalized, vst = read_tsv(folder / normalized_file), read_tsv(folder / log_file)
     samples, estimates = read_tsv(folder / "samples.tsv"), read_tsv(folder / "group_estimates.tsv")
     info = json.loads((folder / "step2_info.json").read_text())
     reference, compare, cutoffs = cfg["reference_group"], cfg["compare_group"], cfg["cutoffs"]
@@ -173,30 +176,47 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
     official = official_symbols(de, hgnc)
     in_file = de["gene_symbol"].fillna("").astype(str)
     symbols = {i: {in_file[i], official[i]} for i in de.index}
-    immport = read_immport(resources_dir / "immport_gene_lists.gmt")
     atlas = pd.read_csv(resources_dir / "immune_cell_markers.tsv", sep="\t", dtype=str, keep_default_na=False)
     atlas_sets = {pid: {m for m in markers.split(",") if m} for pid, markers in zip(atlas["population_id"], atlas["markers"])}
-    in_lists = members(symbols, {i: genes_ for i, (_, genes_) in immport.items()})
     in_atlas = members(symbols, atlas_sets)
     cell_populations = set(atlas.loc[atlas["kind"] == "cell population", "population_id"])
+    use_immport = cfg["use_immport"]
+    if use_immport:
+        immport = read_immport(resources_dir / "immport_gene_lists.gmt")
+        in_lists = members(symbols, {i: genes_ for i, (_, genes_) in immport.items()})
+    else:
+        in_lists = {i: set() for i in de.index}
     immune = {i: bool(in_lists[i]) or bool(in_atlas[i] & cell_populations) for i in de.index}
-    check("ImmPort lists of each significant gene",
-          all(set(g["immune_lists"]) == in_lists[g["id"]] for g in shared),
-          f"mismatches: {[g['symbol'] for g in shared if set(g['immune_lists']) != in_lists[g['id']]][:5]}")
     check("Atlas cell-type markers of each significant gene",
           all(set(g["atlas_markers"]) == in_atlas[g["id"]] for g in shared),
           f"mismatches: {[g['symbol'] for g in shared if set(g['atlas_markers']) != in_atlas[g['id']]][:5]}")
-    check("Immune-related flag (ImmPort list or atlas cell-population marker)",
+    if use_immport:
+        check("ImmPort lists of each significant gene",
+              all(set(g["immune_lists"]) == in_lists[g["id"]] for g in shared),
+              f"mismatches: {[g['symbol'] for g in shared if set(g['immune_lists']) != in_lists[g['id']]][:5]}")
+    else:
+        check("ImmPort is off: no ImmPort lists on the site",
+              not site["immport"] and site["immune_lists"] == [] and not any(g["immune_lists"] for g in genes))
+    check("Immune-related flag (" + ("ImmPort list or " if use_immport else "") + "atlas cell-population marker)",
           all(g["immune"] == immune[g["id"]] for g in shared))
 
-    # 7. Immune-process bars -----------------------------------------------------------------
-    expected_bars = defaultdict(lambda: [0, 0])
+    # 7. Immune cells x changed marker genes grid (and ImmPort bars when on) ---------------------
+    expected_cells = defaultdict(set)
     for gene_id in significant.index:
-        for list_id in in_lists[gene_id]:
-            expected_bars[list_id][0 if significant.at[gene_id, "log2FoldChange"] > 0 else 1] += 1
-    shown_bars = {l["id"]: [l["higher"], l["lower"]] for l in site["immune_lists"]}
-    check("Immune-process bars: significant genes per list, higher and lower",
-          shown_bars == dict(expected_bars), f"{len(expected_bars)} lists")
+        for population_id in in_atlas[gene_id] & cell_populations:
+            expected_cells[population_id].add(gene_id)
+    shown_cells = {c["id"]: set(c["genes"]) for c in site["cell_marker_changes"]}
+    check("Grid: each immune cell population with its significant marker genes",
+          shown_cells == dict(expected_cells),
+          f"{len(expected_cells)} cell populations, {len(set().union(*expected_cells.values()))} genes")
+    if use_immport:
+        expected_bars = defaultdict(lambda: [0, 0])
+        for gene_id in significant.index:
+            for list_id in in_lists[gene_id]:
+                expected_bars[list_id][0 if significant.at[gene_id, "log2FoldChange"] > 0 else 1] += 1
+        shown_bars = {l["id"]: [l["higher"], l["lower"]] for l in site["immune_lists"]}
+        check("ImmPort bars: significant genes per list, higher and lower",
+              shown_bars == dict(expected_bars), f"{len(expected_bars)} lists")
 
     # 8. Summary tiles ---------------------------------------------------------------------------
     check("Tiles: genes in file and genes tested", site["genes_in_file"] == info["genes_in_file"]

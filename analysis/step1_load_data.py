@@ -1,25 +1,35 @@
 """
-Step 1 - Load one dataset and save it as three standard tables.
+Step 1 - Load one dataset and save it as standard tables.
 
-Whatever the original file looks like, it ends up in the same shape here, so steps 2-4
-never need to know the original layout. The dataset config says which column holds what.
+Whatever the original files look like, they end up in the same shape here, so the later steps
+never need to know the original layout. The dataset config says what is where.
 
-Input:   the data file named in the config (e.g. data/GSE282182_gene_count.txt.gz)
-Outputs: results/<dataset>/counts.tsv   raw read counts: one row per gene, one column per sample
-         results/<dataset>/genes.tsv    gene annotation: symbol, description, chromosome, biotype
-         results/<dataset>/samples.tsv  one row per sample: group, library size, fetal sex
+RNA-seq counts (data_type: counts), one table with a column per sample:
+  Input:   the data file named in the config (e.g. data/GSE282182_gene_count.txt.gz)
+  Outputs: results/<dataset>/counts.tsv          raw read counts: one row per gene, one column per sample
+           results/<dataset>/genes.tsv           gene annotation: symbol, description, chromosome, biotype
+
+Agilent one-color microarrays (data_type: microarray), one Feature Extraction file per sample:
+  Input:   the files named in the config, plus the platform's probe annotation (from step 0)
+  Outputs: results/<dataset>/intensities.tsv       processed signal: one row per probe, one column per array
+           results/<dataset>/above_background.tsv  whether each probe is clearly above background on each array
+           results/<dataset>/probes.tsv            probe annotation: gene symbol, gene name, chromosome
+
+Both:      results/<dataset>/samples.tsv           one row per sample: group, (library size), fetal sex
 
 Run:     uv run analysis/step1_load_data.py config/GSE282182.yaml
 """
 
 from __future__ import annotations
 
+import gzip
+import io
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from common import (RESULTS_ROOT, DataError, data_path, load_config, results_dir, show_path,
+from common import (RESULTS_ROOT, DataError, data_path, load_config, repo_path, results_dir, show_path,
                     step_arguments, write_tsv)
 
 # Optional annotation columns (config `columns:` keys) that the website knows how to show.
@@ -100,6 +110,55 @@ def load_dataset(cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     return counts, genes, samples
 
 
+def read_agilent(path: Path) -> pd.DataFrame:
+    """One Agilent Feature Extraction file -> its FEATURES table (one row per spot on the array).
+
+    The file has three tab-separated sections (FEPARAMS, STATS, FEATURES); only FEATURES holds
+    the measurements: ProbeName, ControlType (0 = gene probe), gProcessedSignal (background-corrected
+    signal) and gIsWellAboveBG (1 = clearly above background).
+    """
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rt") as f:
+        lines = f.read().splitlines()
+    start = next((i for i, line in enumerate(lines) if line.startswith("FEATURES\t")), None)
+    if start is None:
+        raise DataError(f"{path.name}: no FEATURES section; is this an Agilent Feature Extraction file?")
+    spots = pd.read_csv(io.StringIO("\n".join(lines[start:])), sep="\t", dtype={"ProbeName": str}, low_memory=False)
+    missing = [c for c in ("ProbeName", "ControlType", "gProcessedSignal", "gIsWellAboveBG") if c not in spots]
+    if missing:
+        raise DataError(f"{path.name}: missing column(s) {missing} in the FEATURES section")
+    return spots
+
+
+def load_microarray(cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Read every array; return (signal, above background, probe annotation, samples).
+
+    Only gene probes are kept (control spots are dropped). Probes printed several times on the
+    array are averaged; a probe counts as above background when most of its spots are.
+    """
+    signal, above = {}, {}
+    for sample, file in cfg["files"].items():
+        path = repo_path(file)
+        if not path.exists():
+            raise DataError(f"data file not found for sample {sample}: {path}")
+        spots = read_agilent(path)
+        spots = spots[spots["ControlType"] == 0]
+        by_probe = spots.groupby("ProbeName")
+        signal[sample] = by_probe["gProcessedSignal"].mean()
+        above[sample] = by_probe["gIsWellAboveBG"].mean() >= 0.5
+    signal, above = pd.DataFrame(signal), pd.DataFrame(above)
+    if signal.isna().to_numpy().any():
+        raise DataError("the arrays do not all have the same probes; are they from the same platform?")
+    signal.index.name = above.index.name = "probe_id"
+
+    annotation = pd.read_csv(repo_path(cfg["platform_annotation"]), sep="\t", dtype=str,
+                             keep_default_na=False).set_index("probe_id")
+    probes = annotation.reindex(signal.index).fillna("")
+    samples = pd.DataFrame({"group": [cfg["samples"][s] for s in signal.columns]},
+                           index=pd.Index(signal.columns, name="sample"))
+    return signal, above, probes, samples
+
+
 def infer_fetal_sex(counts: pd.DataFrame, genes: pd.DataFrame) -> pd.DataFrame:
     """Call each sample male (M) or female (F) from its reads on chrY marker genes.
 
@@ -121,8 +180,32 @@ def infer_fetal_sex(counts: pd.DataFrame, genes: pd.DataFrame) -> pd.DataFrame:
     return calls
 
 
+def run_microarray(cfg: dict, results_root: Path) -> None:
+    signal, above, probes, samples = load_microarray(cfg)
+    group_sizes = ", ".join(f"{g}: {n}" for g, n in samples["group"].value_counts(sort=False).items())
+    with_gene = probes["gene_symbol"] != ""
+    print(f"{cfg['id']}: {cfg['title']}")
+    print(f"  arrays:  {len(samples)} ({group_sizes}), one file each")
+    print(f"  probes:  {len(signal):,} gene probes, {with_gene.sum():,} of them for "
+          f"{probes.loc[with_gene, 'gene_symbol'].nunique():,} named genes (platform annotation: "
+          f"{show_path(repo_path(cfg['platform_annotation']))})")
+    if isinstance(cfg.get("fetal_sex"), dict):
+        samples["fetal_sex"] = [cfg["fetal_sex"][s] for s in samples.index]
+        print("\nFetal sex as listed in the config:")
+        print(samples[["group", "fetal_sex"]].to_string())
+
+    out = results_dir(cfg, results_root)
+    write_tsv(signal.round(3), out / "intensities.tsv")
+    write_tsv(above, out / "above_background.tsv")
+    write_tsv(probes, out / "probes.tsv")
+    write_tsv(samples, out / "samples.tsv")
+    print(f"\nWrote {show_path(out)}/intensities.tsv, above_background.tsv, probes.tsv, samples.tsv")
+
+
 def run(config_path: str | Path, results_root: Path = RESULTS_ROOT) -> None:
     cfg = load_config(config_path)
+    if cfg["data_type"] == "microarray":
+        return run_microarray(cfg, results_root)
     counts, genes, samples = load_dataset(cfg)
 
     group_sizes = ", ".join(f"{g}: {n}" for g, n in samples["group"].value_counts(sort=False).items())

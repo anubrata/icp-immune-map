@@ -65,7 +65,7 @@ re-run it to refresh them. The atlas document is kept by hand: after changing it
 | --- | --- | --- |
 | `immport_gene_lists.gmt` | [ImmPort gene lists]({IMMPORT_GMT_URL}) ([docs](https://docs.immport.org/apidocumentation/genelist/overview/)) | {len(lists)} immune gene lists ({n_genes:,} genes) curated from GO "immune system process" (GO:0002376) and Reactome "Immune System" (R-HSA-168256). One list per line: name, link, gene symbols. |
 | `hgnc_symbols.tsv` | [HGNC complete set]({HGNC_URL}) ([download page](https://www.genenames.org/download/archive/)) | Current official symbol, Ensembl gene ID and previous symbols for {len(hgnc):,} human genes. Used to match genes whose symbol changed. |
-| `human_immune_cell_atlas.docx` | Human Immune Cell Atlas (project document) | Candidate marker genes for ~200 human immune cell populations and functional states, in 14 sections. |
+| `human_immune_cell_atlas.txt` | Human Immune Cell Atlas (project document, plain-text export) | Candidate marker genes for ~200 human immune cell populations and functional states, in 14 sections. |
 | `immune_cell_markers.tsv` | Made from the atlas by `analysis/step0_extract_atlas_markers.py` | The atlas tables, one row per population: section, name, kind, markers, low markers, original text. |
 """
     (RESOURCES_DIR / "README.md").write_text(readme)

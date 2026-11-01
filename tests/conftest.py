@@ -109,6 +109,7 @@ def write_resources(folder: Path) -> Path:
     pd.DataFrame([
         ["1.1", major, "Planted-up cells", "cell population", "GENE0,GENE2,GENE3,GENE4"],
         ["1.2", major, "Unchanged cells", "cell population", "GENE300,GENE301,GENE302,GENE303"],
+        ["1.3", major, "Renamed-marker cells", "cell population", f"{NEW_SYMBOL},GENE304"],
         ["1.10", major, "One-marker cells", "cell population", "GENE305,NOT_IN_DATA"],
         ["13.1", states, "Cytotoxicity", "functional state", "GENE5,GENE6"],
     ], columns=["population_id", "section", "population", "kind", "markers"]).assign(

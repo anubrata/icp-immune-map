@@ -43,6 +43,11 @@ fetal_sex: infer
 # Genes need at least this many reads in at least as many samples as the smallest group to be tested.
 min_count: 10
 
+# Immune gene references (step 3). The Human Immune Cell Atlas is always used.
+# true = also tag genes with ImmPort's immune-process gene lists (resources/immport_gene_lists.gmt);
+# the dashboard then shows those lists too.
+use_immport: false
+
 # Optional (step 3): check each immune cell-type score against a tissue-composition signature.
 # Placenta samples contain varying amounts of decidua (maternal tissue rich in NK cells), which can
 # look like a change in immune cells. PRL and IGFBP1 mark decidualized stromal cells.

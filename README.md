@@ -1,14 +1,19 @@
 # ICP Immune Map
 
 A dashboard of the genes and immune cell types whose expression changes between healthy pregnancies and
-pregnancies with **intrahepatic cholestasis of pregnancy (ICP)**, built from public datasets. Immune-related genes are
-tagged with ImmPort immune gene lists and the Human Immune Cell Atlas markers, and the atlas marker panels are used to
-score immune cell types per patient. It is published with GitHub Pages and rebuilt automatically on every push.
+pregnancies with **intrahepatic cholestasis of pregnancy (ICP)**, built from public datasets. Immune cells come from the
+Human Immune Cell Atlas: the dashboard shows which immune cell populations have changed marker genes, and scores each
+population per patient (ImmPort immune gene lists can be switched on per dataset). It is published with
+GitHub Pages and rebuilt automatically on every push.
 
 **Dashboard: https://anubrata.github.io/icp-immune-map/**
 
-The first dataset is [GEO GSE282182](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE282182): bulk RNA-seq of
-placenta from 5 healthy and 5 ICP pregnancies.
+Datasets (all from [GEO](https://www.ncbi.nlm.nih.gov/geo/), NCBI's public gene-expression archive):
+
+| Dataset | Tissue | Data | Samples | Method |
+| --- | --- | --- | --- | --- |
+| [GSE282182](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE282182) | Placenta | RNA-seq read counts | 5 healthy, 5 ICP | DESeq2, adjusted for fetal sex |
+| [GSE46157](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE46157) | Placenta | Agilent microarray (4x44K v2) | 2 healthy, 4 ICP (2 mild, 2 severe) | moderated t-test, not adjusted for fetal sex |
 
 ## How it works
 
@@ -16,8 +21,9 @@ placenta from 5 healthy and 5 ICP pregnancies.
 data/<file>  +  config/<dataset>.yaml
         │
         ├─ step 1  analysis/step1_load_data.py               any file layout → standard tables
-        ├─ step 2  analysis/step2_differential_expression.py DESeq2 (pydeseq2): ICP vs healthy
-        ├─ step 3  analysis/step3_immune_annotation.py       tag immune genes (ImmPort + atlas),
+        ├─ step 2  analysis/step2_differential_expression.py ICP vs healthy: DESeq2 (counts) or
+        │                                                    moderated t-test (microarrays)
+        ├─ step 3  analysis/step3_immune_annotation.py       tag immune cell marker genes (atlas; ImmPort optional),
         │                                                    score immune cell types (atlas markers)
         ├─ step 4  analysis/step4_export_site_data.py        significant genes + cell types → site/data/*.json
         └─ step 5  analysis/step5_check_site_data.py         recompute every number independently and compare
@@ -45,22 +51,30 @@ Run the tests (synthetic data only) with `uv run pytest`.
 
 ## Add a dataset
 
-1. Put the file in `data/` (`.txt`, `.tsv`, `.csv` or `.xlsx`, optionally `.gz`). It must hold **raw read counts**,
-   one row per gene and one column per sample.
-2. Copy `config/GSE282182.yaml` to `config/<new id>.yaml` and edit it:
+1. Put the data in `data/`. Two kinds are supported:
+   - **RNA-seq raw read counts** (`data_type: counts`): one table (`.txt`, `.tsv`, `.csv` or `.xlsx`, optionally `.gz`),
+     one row per gene and one column per sample. Already-normalized values (TPM, FPKM) cannot be used.
+   - **Agilent one-color microarrays** (`data_type: microarray`): the raw Feature Extraction file of each array
+     (as on GEO, e.g. `GSM1125156_Healthy-1.txt.gz`), plus the platform's probe annotation, made once with
+     `uv run analysis/step0_fetch_platform_annotation.py <GPL id>`.
+2. Copy `config/GSE282182.yaml` (counts) or `config/GSE46157.yaml` (microarray) to `config/<new id>.yaml` and edit it:
 
    | Setting | Meaning |
    | --- | --- |
    | `id`, `title`, `tissue`, `geo_accession` | Shown on the site |
-   | `file` | Path of the data file, relative to the repository root |
+   | `data_type` | `counts` (default) or `microarray` |
+   | `file` | (counts) Path of the data file, relative to the repository root |
+   | `files`, `platform_annotation` | (microarray) One file per sample, and the probe annotation from step 0 |
    | `read_options` | Extra pandas options for unusual layouts, e.g. `{sep: ";", skiprows: 2}` |
-   | `columns.gene_id` | Column with a unique ID per row (required) |
-   | `columns.gene_symbol`, `description`, `chromosome`, `biotype` | Optional annotation columns |
-   | `samples` | Every sample column → its group |
+   | `columns.gene_id` | (counts) Column with a unique ID per row |
+   | `columns.gene_symbol`, `description`, `chromosome`, `biotype` | (counts) Optional annotation columns |
+   | `samples` | Every sample → its group |
    | `reference_group`, `compare_group` | Fold changes are compare vs reference (e.g. ICP vs Healthy) |
-   | `fetal_sex` | `infer` (from chrY genes), a per-sample map of `M`/`F`, or leave it out for no adjustment |
+   | `fetal_sex` | `infer` (counts only, from chrY genes), a per-sample map of `M`/`F`, or leave it out |
+   | `adjust_for_fetal_sex` | `true` (default): add fetal sex to the model when both sexes are present; `false`: record it only (chrY genes are then left out) |
+   | `use_immport` | `true` to also tag genes with ImmPort's immune gene lists (default `false`: atlas only) |
    | `composition_check` | Optional `name` + `markers` of a tissue-composition signature to check cell-type scores against (placenta: `Decidua`, `[PRL, IGFBP1]`) |
-   | `min_count` | Genes need this many reads in at least as many samples as the smallest group |
+   | `min_count` | (counts) Genes need this many reads in at least as many samples as the smallest group |
    | `cutoffs` | `pvalue` (unadjusted) or `padj` (FDR-adjusted), plus `abs_log2fc` |
 
 3. Run `./run_all.sh config/<new id>.yaml` to check it, then push. Step 1 stops with a plain-English
@@ -76,11 +90,16 @@ cross-check), and publishes `site/` only if all of that passes.
 
 ## Methods and caveats
 
-- **Differential expression:** DESeq2 (negative binomial model, Wald test) via
+- **Differential expression, RNA-seq:** DESeq2 (negative binomial model, Wald test) via
   [pydeseq2](https://github.com/owkin/PyDESeq2). Genes need at least 10 reads in at least 5 samples to be tested.
-- **Fetal sex:** the placenta is fetal tissue, and in GSE282182 the groups differ in fetal sex
-  (healthy: 4 female, 1 male; ICP: 2 female, 3 male, inferred from chrY genes). The model is
-  `~ fetal_sex + condition`, so sex-linked genes are not mistaken for ICP effects.
+- **Differential expression, microarrays:** each probe's processed signal is log2-transformed and quantile-normalized
+  across arrays; probes clearly above background on at least as many arrays as the smallest group and measuring a named
+  gene are kept (the brightest probe per gene); then a limma-style moderated t-test (Smyth 2004, implemented in
+  `analysis/moderated_t.py`) compares the groups. R's limma itself is not used.
+- **Fetal sex:** the placenta is fetal tissue. In GSE282182 the groups differ in fetal sex (healthy: 4 female, 1 male;
+  ICP: 2 female, 3 male, inferred from chrY genes), so the model is `~ fetal_sex + condition`. In GSE46157 the two
+  mild-ICP placentas are male and the other four female (from the DDX3Y signal), so fetal sex coincides with severity;
+  it is recorded but not adjusted for, and chrY genes are left out of the test.
 - **Significance:** a gene is shown when its **unadjusted** p-value is below 0.05 and it changes at least 2-fold
   (|log2 fold change| ≥ 1). With ~17,000 genes tested, some genes pass this by chance, so treat the list as
   candidates; the FDR (adjusted p-value) is shown next to every gene. Cutoffs are set per dataset in its config.
@@ -94,13 +113,16 @@ cross-check), and publishes `site/` only if all of that passes.
   male placenta, so male-specific changes rest on a single sample.
 - **Small study:** 5 vs 5 samples. In this dataset the overall difference between the groups is subtle
   (see "Quality checks" on the site).
-- **Immune genes:** a gene is tagged immune-related if it is in any of ImmPort's ~150 immune gene lists (curated from
-  GO "immune system process" and Reactome "Immune System") or is a marker of an immune cell population in the Human
-  Immune Cell Atlas (`resources/human_immune_cell_atlas.docx`). The atlas's cross-lineage functional-state signatures
-  (proliferation, hypoxia, …) don't count, as the atlas notes they are not immune-specific. Genes are matched by their
-  symbol and by their current HGNC symbol (via Ensembl ID), so renamed genes still match. Refresh the ImmPort/HGNC
-  files with `uv run analysis/step0_fetch_gene_lists.py`; after editing the atlas, run
-  `uv run analysis/step0_extract_atlas_markers.py`.
+- **Immune genes:** a gene is tagged immune-related if it is a marker of an immune cell population in the Human Immune
+  Cell Atlas (`resources/human_immune_cell_atlas.txt`). The atlas's cross-lineage functional-state signatures
+  (proliferation, hypoxia, …) don't count, as the atlas notes they are not immune-specific. The dashboard's grid
+  "Immune cells and their changed marker genes" shows each atlas cell population with its significant marker genes.
+  Genes are matched by their symbol and by their current HGNC symbol (via Ensembl ID), so renamed genes still match.
+  After editing the atlas, run `uv run analysis/step0_extract_atlas_markers.py`.
+- **ImmPort (optional, off):** with `use_immport: true` in a dataset config, genes are also tagged with ImmPort's ~150
+  immune gene lists (GO "immune system process" and Reactome "Immune System" sub-terms), count as immune-related when in
+  one, and the dashboard adds an ImmPort card. The lists are in `resources/immport_gene_lists.gmt`; refresh them (and the
+  HGNC table) with `uv run analysis/step0_fetch_gene_lists.py`.
 - **Immune cell types:** for every atlas population with at least 2 marker genes among the tested genes, each patient
   gets a score (the mean of the markers' variance-stabilized expression, each gene scaled to mean 0 and SD 1). Scores
   are compared with `score ~ fetal_sex + group`, giving the difference in SD with a 95% CI, a p-value and an FDR across
@@ -127,6 +149,6 @@ cross-check), and publishes `site/` only if all of that passes.
   *Genome Biology* 15, 550 (2014).
 - Muzellec B, Teleńczuk M, Cabeli V, Andreux M. PyDESeq2: a python package for bulk RNA-seq differential
   expression analysis. *Bioinformatics* 39, btad547 (2023).
-- Human Immune Cell Atlas: Gene Markers for Cell Types and Functional States (`resources/human_immune_cell_atlas.docx`).
+- Human Immune Cell Atlas: Gene Markers for Cell Types and Functional States (`resources/human_immune_cell_atlas.txt`).
 - [ImmPort gene lists](https://docs.immport.org/apidocumentation/genelist/overview/) · [HGNC](https://www.genenames.org/) ·
   [GEO GSE282182](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE282182)

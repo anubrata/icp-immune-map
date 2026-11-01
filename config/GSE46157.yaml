@@ -1,0 +1,53 @@
+# Dataset config: tells the analysis how to read one dataset.
+# GSE46157: placenta, Agilent one-color microarrays (one raw Feature Extraction file per array).
+
+id: GSE46157
+title: Placenta, ICP vs healthy pregnancy (Agilent microarray)
+geo_accession: GSE46157
+tissue: Placenta
+
+data_type: microarray
+# Which gene each probe measures: GEO platform GPL10332 (Agilent-026652 Whole Human Genome 4x44K v2).
+# Made by: uv run analysis/step0_fetch_platform_annotation.py GPL10332
+platform_annotation: resources/GPL10332_probes.tsv
+
+# One Agilent Feature Extraction file per array (sample name -> file)
+files:
+  Healthy-1: data/GSM1125156_Healthy-1.txt.gz
+  Healthy-2: data/GSM1125157_Healthy-2.txt.gz
+  Mild-ICP-1: data/GSM1125158_Mild_ICP-1.txt.gz
+  Mild-ICP-2: data/GSM1125159_Mild_ICP-2.txt.gz
+  Severe-ICP-1: data/GSM1125160_Severe_ICP-1.txt.gz
+  Severe-ICP-2: data/GSM1125161_Severe_ICP-2.txt.gz
+
+# Each sample's group: mild and severe ICP are analysed together as ICP.
+samples:
+  Healthy-1: Healthy
+  Healthy-2: Healthy
+  Mild-ICP-1: ICP
+  Mild-ICP-2: ICP
+  Severe-ICP-1: ICP
+  Severe-ICP-2: ICP
+
+reference_group: Healthy        # fold changes are compare_group relative to this group
+compare_group: ICP
+
+# Fetal sex from the arrays' DDX3Y (chrY) signal, which is high only on the two mild-ICP arrays.
+# (XIST is high on all six arrays, likely from maternal tissue, so it cannot be used here.)
+fetal_sex: {Healthy-1: F, Healthy-2: F, Mild-ICP-1: M, Mild-ICP-2: M, Severe-ICP-1: F, Severe-ICP-2: F}
+# Not adjusted for: here fetal sex coincides with ICP severity (both mild-ICP placentas are male).
+# Genes on chromosome Y are then left out of the test.
+adjust_for_fetal_sex: false
+
+# Immune gene references (step 3). The Human Immune Cell Atlas is always used.
+use_immport: false
+
+# Check each immune cell-type score against the amount of decidua in each sample (see GSE282182.yaml).
+composition_check:
+  name: Decidua
+  markers: [PRL, IGFBP1]
+
+# A gene is "significant" (and shown on the site) when it passes both cutoffs.
+cutoffs:
+  pvalue: 0.05
+  abs_log2fc: 1.0

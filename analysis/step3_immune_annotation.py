@@ -1,19 +1,19 @@
 """
-Step 3 - Immune annotation: which genes are immune-related, and which immune cell types change?
+Step 3 - Immune annotation: which genes are immune cell markers, and which immune cell types change?
 
-Two references:
-  * ImmPort immune gene lists: ~150 lists from GO "immune system process" and Reactome "Immune
-    System", one per immune process (e.g. "Activation of innate immune response").
-  * The Human Immune Cell Atlas (resources/human_immune_cell_atlas.docx, made into
+References:
+  * The Human Immune Cell Atlas (always used; resources/human_immune_cell_atlas.txt, made into
     resources/immune_cell_markers.tsv by step 0): marker genes for ~200 immune cell populations
-    and states (e.g. "NK cells: NKG7, GNLY, KLRD1, NCR1, PRF1").
+    and states, e.g. "NK cells: NKG7, GNLY, KLRD1, NCR1, PRF1".
+  * ImmPort immune gene lists (optional, `use_immport: true` in the config): ~150 lists of genes
+    per immune process from GO and Reactome, e.g. "Activation of innate immune response".
 
-Part A - tag genes. Each tested gene gets the ImmPort lists it belongs to and the atlas
-populations it is a marker of. A gene counts as immune-related if it is in an ImmPort list or
-marks an atlas cell population. (The atlas's cross-lineage "functional state" signatures, such
-as proliferation or hypoxia, don't count: the atlas notes they are not specific to immune cells.)
-Symbols change over time (e.g. C4orf21 is now ZGRF1), so each gene is matched both by its
-symbol in the data file and by its current official symbol, looked up from its Ensembl ID.
+Part A - tag genes. Each tested gene gets the atlas populations it is a marker of (and, with
+ImmPort on, the ImmPort lists it is in). A gene counts as immune-related if it marks an atlas cell
+population, or is in an ImmPort list when ImmPort is on. (The atlas's cross-lineage "functional
+state" signatures, such as proliferation or hypoxia, don't count on their own: the atlas notes they
+are not specific to immune cells.) Symbols change over time (e.g. C4orf21 is now ZGRF1), so each
+gene is matched both by its symbol in the data file and by its current official (HGNC) symbol.
 
 Part B - score immune cell types. For every atlas population with at least 2 marker genes among
 the tested genes, each patient gets a score: the average of those markers' expression, after
@@ -24,11 +24,12 @@ and an FDR across all scored populations. With `composition_check` in the config
 also compared with a tissue-composition signature (in placenta: the amount of decidua, maternal
 tissue rich in NK cells, which varies between samples and can mimic a change in immune cells).
 
-Inputs:  results/<dataset>/de_all_genes.tsv, vst.tsv, samples.tsv, step2_info.json  (steps 1-2)
-         resources/immport_gene_lists.gmt, hgnc_symbols.tsv, immune_cell_markers.tsv (step 0)
-Outputs: results/<dataset>/de_all_genes_annotated.tsv     step 2's table + current_symbol,
-                                                         immune_lists, atlas_markers, immune
-         results/<dataset>/immune_lists.tsv              one row per ImmPort list
+Inputs:  results/<dataset>/de_all_genes.tsv, vst.tsv (or log2_intensities.tsv), samples.tsv, step2_info.json
+         resources/immune_cell_markers.tsv, hgnc_symbols.tsv, and with ImmPort on
+         immport_gene_lists.gmt                                                  (step 0)
+Outputs: results/<dataset>/de_all_genes_annotated.tsv     step 2's table + current_symbol, atlas_markers,
+                                                         immune_lists (ImmPort on), immune
+         results/<dataset>/immune_lists.tsv              one row per ImmPort list (ImmPort on)
          results/<dataset>/cell_type_scores.tsv          one row per atlas population: markers found,
                                                          ICP difference, 95% CI, p, FDR, composition check
          results/<dataset>/cell_type_patient_scores.tsv  each scored population's score per patient
@@ -49,17 +50,17 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from common import (RESOURCES_DIR, RESULTS_ROOT, describe_cutoffs, is_significant, load_config, read_tsv,
+from common import (RESOURCES_DIR, RESULTS_ROOT, describe_cutoffs, expression_files, is_significant, load_config, read_tsv,
                     results_dir, row_zscores, show_path, step_arguments, write_tsv)
 
-LIST_ID = re.compile(r"(GO:\d{7}|R-HSA-\d+)")
 MIN_MARKERS = 2  # a population is scored when at least this many of its markers were tested
+LIST_ID = re.compile(r"(GO:\d{7}|R-HSA-\d+)")
 
 
 # ------------------------------------------------------------------ reference files
 
 def read_gmt(path: Path) -> dict[str, dict]:
-    """Read a GMT file (one list per line: name, link, then gene symbols).
+    """Read ImmPort's GMT file (one list per line: name, link, then gene symbols).
 
     Returns {list ID: {"name", "source", "url", "genes"}}, where the ID is the GO or Reactome
     identifier found in the link (e.g. GO:0002218 or R-HSA-879415).
@@ -134,20 +135,24 @@ def memberships(symbol_pairs: list[tuple[str, str]], sets: dict[str, set[str]], 
             for old, new in symbol_pairs]
 
 
-def annotate_immune(table: pd.DataFrame, lists: dict[str, dict], atlas: pd.DataFrame, hgnc: HgncLookup) -> pd.DataFrame:
-    """Add current_symbol, immune_lists (ImmPort IDs), atlas_markers (atlas IDs) and immune (True/False)."""
+def annotate_immune(table: pd.DataFrame, atlas: pd.DataFrame, hgnc: HgncLookup,
+                    lists: dict[str, dict] | None = None) -> pd.DataFrame:
+    """Add current_symbol, atlas_markers (';'-separated atlas IDs), immune_lists (ImmPort IDs; only
+    when `lists` is given) and immune (True/False)."""
     symbols = table["gene_symbol"].fillna("").astype(str)
     current = [current_symbol(gene_id, symbol, hgnc) for gene_id, symbol in zip(table.index, symbols)]
     pairs = list(zip(symbols, current))
 
     annotated = table.copy()
     annotated.insert(annotated.columns.get_loc("gene_symbol") + 1, "current_symbol", current)
-    annotated["immune_lists"] = memberships(pairs, {list_id: info["genes"] for list_id, info in lists.items()})
     annotated["atlas_markers"] = memberships(pairs, {pid: set(genes) for pid, genes in atlas["genes"].items()},
                                              order=population_order)
     cell_populations = set(atlas.index[atlas["kind"] == "cell population"])
-    annotated["immune"] = [bool(in_lists) or any(pid in cell_populations for pid in markers.split(";"))
-                           for in_lists, markers in zip(annotated["immune_lists"], annotated["atlas_markers"])]
+    immune = [any(pid in cell_populations for pid in markers.split(";")) for markers in annotated["atlas_markers"]]
+    if lists is not None:
+        annotated["immune_lists"] = memberships(pairs, {list_id: info["genes"] for list_id, info in lists.items()})
+        immune = [flag or bool(in_lists) for flag, in_lists in zip(immune, annotated["immune_lists"])]
+    annotated["immune"] = immune
     return annotated
 
 
@@ -261,31 +266,35 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, resources_di
     folder = results_dir(cfg, results_root)
     resources_dir = Path(resources_dir)
     table = read_tsv(folder / "de_all_genes.tsv")
-    vst = read_tsv(folder / "vst.tsv")
+    log_scale = read_tsv(folder / expression_files(cfg)[1])  # log2-like expression from step 2
     samples = read_tsv(folder / "samples.tsv")
     info = json.loads((folder / "step2_info.json").read_text())
-    lists = read_gmt(resources_dir / "immport_gene_lists.gmt")
-    hgnc = read_hgnc(resources_dir / "hgnc_symbols.tsv")
     atlas = read_atlas(resources_dir / "immune_cell_markers.tsv")
+    hgnc = read_hgnc(resources_dir / "hgnc_symbols.tsv")
+    lists = read_gmt(resources_dir / "immport_gene_lists.gmt") if cfg["use_immport"] else None
 
     # Part A - tag genes
-    annotated = annotate_immune(table, lists, atlas, hgnc)
+    annotated = annotate_immune(table, atlas, hgnc, lists)
     write_tsv(annotated, folder / "de_all_genes_annotated.tsv")
-    write_tsv(lists_table(lists, annotated), folder / "immune_lists.tsv")
+    lists_path = folder / "immune_lists.tsv"
+    if lists is not None:
+        write_tsv(lists_table(lists, annotated), lists_path)
+    elif lists_path.exists():
+        lists_path.unlink()
 
     significant = is_significant(annotated, cfg["cutoffs"])
-    in_lists = annotated["immune_lists"] != ""
     renamed = int((annotated["current_symbol"] != annotated["gene_symbol"]).sum())
-    print(f"References: {len(lists)} ImmPort immune gene lists; {len(atlas)} atlas populations/states")
+    rule = "atlas cell-population marker" + (" or ImmPort list" if lists is not None else "")
+    print(f"Human Immune Cell Atlas: {len(atlas)} populations/states in {atlas['section'].nunique()} sections")
+    print(f"ImmPort immune gene lists: " + (f"{len(lists)} lists (on)" if lists is not None else "off (use_immport: false)"))
     print(f"Tested genes whose official symbol changed since the data file was made: {renamed:,}")
-    print(f"Immune-related: {annotated['immune'].sum():,} of {len(annotated):,} tested genes "
-          f"({in_lists.sum():,} in ImmPort lists, {(annotated['immune'] & ~in_lists).sum():,} more from atlas markers)")
-    print(f"  and {annotated.loc[significant, 'immune'].sum()} of the {significant.sum()} genes passing "
+    print(f"Immune-related ({rule}): {annotated['immune'].sum():,} of {len(annotated):,} tested genes, and "
+          f"{annotated.loc[significant, 'immune'].sum()} of the {significant.sum()} genes passing "
           f"{describe_cutoffs(cfg['cutoffs'])}")
 
     # Part B - score immune cell types
     summary, patient_scores, composition = score_cell_types(
-        annotated, vst, samples, atlas, cfg["reference_group"], cfg["compare_group"],
+        annotated, log_scale, samples, atlas, cfg["reference_group"], cfg["compare_group"],
         adjust_for_sex="fetal_sex" in info["design"], composition=cfg["composition_check"])
     write_tsv(summary, folder / "cell_type_scores.tsv")
     write_tsv(patient_scores.round(4), folder / "cell_type_patient_scores.tsv")
@@ -311,11 +320,12 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, resources_di
         top[f"p adjusted for {name}"] = top["pvalue_composition_adjusted"].map("{:.3g}".format)
         shown += [f"r with {name}", f"p adjusted for {name}"]
     print(top[shown].to_string())
-    print(f"\nWrote {show_path(folder)}/de_all_genes_annotated.tsv, immune_lists.tsv, cell_type_scores.tsv, "
-          "cell_type_patient_scores.tsv" + (", composition_score.tsv" if composition is not None else ""))
+    print(f"\nWrote {show_path(folder)}/de_all_genes_annotated.tsv, cell_type_scores.tsv, "
+          "cell_type_patient_scores.tsv" + (", composition_score.tsv" if composition is not None else "")
+          + (", immune_lists.tsv" if lists is not None else ""))
 
 
 if __name__ == "__main__":
-    args = step_arguments("Step 3: immune gene tags (ImmPort + atlas) and immune cell-type scores.",
+    args = step_arguments("Step 3: immune cell markers (Human Immune Cell Atlas, optionally ImmPort) and cell-type scores.",
                           {"--resources-dir": (RESOURCES_DIR, "folder with the step 0 files (default: resources/)")})
     run(args.config, args.results_root, args.resources_dir)

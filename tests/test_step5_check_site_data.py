@@ -16,7 +16,7 @@ def test_a_wrong_number_is_caught(pipeline_run, tmp_path):
     shutil.copytree(pipeline_run["site_data"], site_data)
     path = site_data / "SYNTH.json"
     data = json.loads(path.read_text())
-    data["immune_lists"][0]["higher"] += 1           # one bar off by one
+    data["cell_marker_changes"][0]["genes"].pop()       # one cell type missing a gene
     data["genes"][0]["log2fc"] = -data["genes"][0]["log2fc"]  # one gene pointing the wrong way
     path.write_text(json.dumps(data))
     failures = step5_check_site_data.run(pipeline_run["config"], pipeline_run["results_root"],

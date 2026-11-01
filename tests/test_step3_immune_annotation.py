@@ -26,33 +26,26 @@ def test_reads_gmt_lists_with_their_ids(tmp_path):
 
 def test_matches_by_symbol_and_by_current_symbol(tmp_path):
     resources = write_resources(tmp_path)
-    lists = read_gmt(resources / "immport_gene_lists.gmt")
-    hgnc = read_hgnc(resources / "hgnc_symbols.tsv")
     atlas = read_atlas(resources / "immune_cell_markers.tsv")
+    hgnc = read_hgnc(resources / "hgnc_symbols.tsv")
     table = pd.DataFrame({"gene_symbol": ["GENE0", OLD_SYMBOL, OLD_SYMBOL, "IFNB2", "GENE7"]},
                          index=["G0", f"{RENAMED_ID}.5", "no_ensembl_id", "other", "G7"])
-    annotated = annotate_immune(table, lists, atlas, hgnc)
 
-    assert annotated.loc["G0", "immune_lists"] == "GO:0002218;R-HSA-1059683"
+    atlas_only = annotate_immune(table, atlas, hgnc)
+    assert "immune_lists" not in atlas_only                       # ImmPort off by default
+    assert atlas_only.loc["G0", "atlas_markers"] == "1.1"
     # renamed gene, matched through its Ensembl ID (version suffix ignored)...
-    assert annotated.loc[f"{RENAMED_ID}.5", "current_symbol"] == NEW_SYMBOL
-    assert annotated.loc[f"{RENAMED_ID}.5", "immune"]
+    assert atlas_only.loc[f"{RENAMED_ID}.5", "current_symbol"] == NEW_SYMBOL
+    assert atlas_only.loc[f"{RENAMED_ID}.5", "atlas_markers"] == "1.3"
     # ...or through HGNC's previous-symbol table when there is no Ensembl ID
-    assert annotated.loc["no_ensembl_id", "current_symbol"] == NEW_SYMBOL
-    assert annotated.loc["other", "current_symbol"] == "IL6"
-    assert not annotated.loc["G7", "immune"]
-    assert annotated.loc["G7", "immune_lists"] == ""
+    assert atlas_only.loc["no_ensembl_id", "current_symbol"] == NEW_SYMBOL
+    assert atlas_only.loc["other", "current_symbol"] == "IL6"
+    assert atlas_only["immune"].tolist() == [True, True, True, False, False]
 
-
-def test_pipeline_tags_the_renamed_gene(pipeline_run):
-    annotated = read_tsv(pipeline_run["results"] / "de_all_genes_annotated.tsv")
-    assert annotated.loc[RENAMED_ID, "gene_symbol"] == OLD_SYMBOL
-    assert annotated.loc[RENAMED_ID, "current_symbol"] == NEW_SYMBOL
-    assert annotated.loc[RENAMED_ID, "immune"]
-
-    lists = read_tsv(pipeline_run["results"] / "immune_lists.tsv")
-    assert lists.loc["GO:0002218", "genes_in_list"] == 4
-    assert lists.loc["GO:0002218", "genes_tested"] == 4  # GENE0, both GENE1 rows, renamed gene
+    with_immport = annotate_immune(table, atlas, hgnc, read_gmt(resources / "immport_gene_lists.gmt"))
+    assert with_immport.loc["G0", "immune_lists"] == "GO:0002218;R-HSA-1059683"
+    assert with_immport.loc[f"{RENAMED_ID}.5", "immune_lists"] == "GO:0002218"
+    assert with_immport.loc["G7", "immune_lists"] == ""
 
 
 def test_atlas_markers_tag_genes(pipeline_run):
@@ -62,19 +55,25 @@ def test_atlas_markers_tag_genes(pipeline_run):
     assert annotated.loc[gene_id(5), "atlas_markers"] == "13.1"
     assert not annotated.loc[gene_id(5), "immune"]                   # a functional-state marker alone doesn't count
     assert annotated.loc[gene_id(305), "atlas_markers"] == "1.10"    # read back as text, not the number 1.1
+    assert annotated.loc[RENAMED_ID, "gene_symbol"] == OLD_SYMBOL
+    assert annotated.loc[RENAMED_ID, "current_symbol"] == NEW_SYMBOL
+    assert annotated.loc[RENAMED_ID, "atlas_markers"] == "1.3" and annotated.loc[RENAMED_ID, "immune"]
+    assert not annotated.loc[gene_id(1), "immune"]                   # only in an ImmPort list, and ImmPort is off
+    assert not (pipeline_run["results"] / "immune_lists.tsv").exists()
 
 
 def test_cell_type_scores_find_the_planted_population(pipeline_run):
     scores = read_tsv(pipeline_run["results"] / "cell_type_scores.tsv")
-    assert scores.index.tolist() == ["1.1", "1.2", "1.10", "13.1"]
+    assert scores.index.tolist() == ["1.1", "1.2", "1.3", "1.10", "13.1"]
 
     planted = scores.loc["1.1"]
     assert planted["n_found"] == 4 and planted["markers_higher"] == 4
     assert planted["effect"] > 1 and planted["ci_low"] > 0 and planted["pvalue"] < 0.01
     assert abs(scores.loc["1.2", "effect"]) < planted["effect"]
+    assert scores.loc["1.3", "n_found"] == 2                          # the renamed marker is found
     assert np.isnan(scores.loc["1.10", "pvalue"])                     # only 1 marker tested: not scored
     assert -1 <= planted["composition_r"] <= 1 and not np.isnan(planted["pvalue_composition_adjusted"])
 
     patients = read_tsv(pipeline_run["results"] / "cell_type_patient_scores.tsv")
-    assert patients.index.tolist() == ["1.1", "1.2", "13.1"] and patients.shape[1] == 10
+    assert patients.index.tolist() == ["1.1", "1.2", "1.3", "13.1"] and patients.shape[1] == 10
     assert read_tsv(pipeline_run["results"] / "composition_score.tsv").shape == (10, 1)
