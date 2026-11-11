@@ -14,6 +14,7 @@ Datasets (all from [GEO](https://www.ncbi.nlm.nih.gov/geo/), NCBI's public gene-
 | --- | --- | --- | --- | --- | --- |
 | [GSE282182](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE282182) | Human | Placenta | RNA-seq read counts | 5 healthy, 5 ICP | DESeq2, not adjusted for fetal sex |
 | [GSE46157](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE46157) | Human | Placenta | Agilent microarray (4x44K v2) | 2 healthy, 4 ICP (2 mild, 2 severe) | moderated t-test, not adjusted for fetal sex |
+| [PRJNA846869](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA846869) | Human | Placenta | Total RNA-seq, raw reads counted here (first 20M read pairs, Salmon) | 5 healthy, 7 ICP | DESeq2, not adjusted for fetal sex |
 | [GSE314547](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE314547) | Mouse (model) | Liver | RNA-seq read counts | 4 vehicle, 4 ethinylestradiol (humanized PXR-CAR-CYP3A4/3A7 mice) | DESeq2; immune markers via one-to-one human orthologs |
 
 [`doc/datasets/dataset_candidates.md`](doc/datasets/dataset_candidates.md) lists the other candidate ICP datasets (human,
@@ -61,6 +62,11 @@ Run the tests (synthetic data only) with `uv run pytest`.
      one row per gene and one column per sample. Already-normalized values (TPM, FPKM) cannot be used. Human or mouse
      (`species`); a mouse dataset needs `gene_annotation: resources/mouse_genes.tsv.gz` (made with
      `uv run analysis/step0_fetch_mouse_genes.py`).
+   - **Only raw reads published** (FASTQ in SRA/ENA, no count table): make the count table first with
+     `uv run analysis/step0_build_salmon_index.py` (once: GENCODE reference + Salmon index, ~1 hour) and
+     `uv run analysis/step0_quantify_reads.py <BioProject>` (streams the first 20 million read pairs of each run from NCBI,
+     counts them with Salmon, adds them up per gene). Needs `brew install salmon sratoolkit`. The result,
+     `data/<BioProject>_gene_counts.tsv.gz`, is then an ordinary counts dataset.
    - **Agilent one-color microarrays** (`data_type: microarray`): the raw Feature Extraction file of each array
      (as on GEO, e.g. `GSM1125156_Healthy-1.txt.gz`), plus the platform's probe annotation, made once with
      `uv run analysis/step0_fetch_platform_annotation.py <GPL id>`.
@@ -69,6 +75,7 @@ Run the tests (synthetic data only) with `uv run pytest`.
    | Setting | Meaning |
    | --- | --- |
    | `id`, `title`, `tissue`, `geo_accession` | Shown on the site |
+   | `source` | For data not on GEO: `{label: ..., url: ...}`, the link shown instead of the GEO link |
    | `species` | `human` (default) or `mouse` |
    | `notes` | Optional: a sentence or two on the design and its limits, shown under the dataset's title |
    | `data_type` | `counts` (default) or `microarray` |
@@ -130,6 +137,12 @@ cross-check), and publishes `site/` only if all of that passes.
   "Immune cells and their changed marker genes" shows each atlas cell population with its significant marker genes.
   Genes are matched by their symbol and by their current HGNC symbol (via Ensembl ID), so renamed genes still match.
   After editing the atlas, run `uv run analysis/step0_extract_atlas_markers.py`.
+- **Counting raw reads (PRJNA846869):** the study published only raw reads, so the first 20 million read pairs of each
+  placenta (of ~85 million) were counted with Salmon 2.11 against GENCODE v50 transcripts, with the GRCh38 genome as
+  decoy, and added up per gene (tximport's lengthScaledTPM). About half of the read pairs map to transcripts (47–58%),
+  as expected for total-RNA libraries rich in intronic reads; see `data/PRJNA846869_quantification.tsv`. These placenta
+  samples hold little decidua (PRL and GNLY are barely detected), except ICP_G, which holds a lot; that one sample is why
+  ten decidual genes (IGFBP1, CHRDL1, SCARA5, …) are marked ⚠.
 - **Mouse datasets:** the atlas lists human genes, so a mouse gene counts as a marker only through its one-to-one human
   ortholog (from MGI's mouse-human homology report, built by `analysis/step0_fetch_mouse_genes.py`), never because the
   names look alike. Genes whose ortholog is ambiguous (several genes on either side, e.g. Lyz1/Lyz2 for LYZ, the Ccl3/Ccl4

@@ -113,6 +113,10 @@ def load_config(path: str | Path) -> dict:
     cfg.setdefault("tissue", None)
     cfg.setdefault("geo_accession", None)
     cfg.setdefault("notes", None)  # one or two sentences on the design and its limits, shown on the site
+    # where the data comes from, for datasets not on GEO: {label: "BioProject PRJNA846869", url: "https://..."}
+    source = cfg.setdefault("source", None)
+    if source is not None:
+        require(isinstance(source, dict) and source.get("label") and source.get("url"), "source needs a label and a url")
     cfg.setdefault("min_count", 10)
     cfg.setdefault("read_options", {})
     return cfg

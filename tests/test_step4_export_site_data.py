@@ -79,7 +79,7 @@ def test_csv_and_dataset_index(pipeline_run):
     index = strict_json(pipeline_run["site_data"] / "datasets.json")
     assert index == [{"id": "SYNTH", "title": "Synthetic test data", "species": "human", "tissue": "Placenta",
                       "file": "SYNTH.json", "significant_genes": len(data["genes"])}]
-    assert data["species"] == "human" and data["notes"] is None
+    assert data["species"] == "human" and data["notes"] is None and data["source"] is None
     assert all(g["human_ortholog"] is None for g in data["genes"])
 
 

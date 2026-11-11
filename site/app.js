@@ -275,11 +275,15 @@ function renderAll() {
 
 /* ----------------------------------------------------------- header & tiles */
 
+/** Link to where the data comes from: its GEO page, or the config's `source` for data not on GEO. */
 function geoLink() {
   const d = state.data;
-  if (!d.geo_accession) return d.id;
-  return h("a", { href: `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${encodeURIComponent(d.geo_accession)}` },
-    `GEO ${d.geo_accession}`);
+  if (d.geo_accession) {
+    return h("a", { href: `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${encodeURIComponent(d.geo_accession)}` },
+      `GEO ${d.geo_accession}`);
+  }
+  if (d.source?.url?.startsWith("https://")) return h("a", { href: d.source.url }, d.source.label);
+  return d.id;
 }
 
 /** On GitHub Pages (user.github.io/repo/), link back to the repository. */

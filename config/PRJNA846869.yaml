@@ -1,0 +1,62 @@
+# Dataset config: human placenta, total RNA-seq (catalog ID H02).
+# Wang et al. 2022, "Immune Dysfunction Mediated by the ceRNA Regulatory Network in Human Placenta Tissue of
+# Intrahepatic Cholestasis Pregnancy", Front Immunol 13:883971 (https://pmc.ncbi.nlm.nih.gov/articles/PMC9263217/).
+
+id: PRJNA846869
+title: Placenta, ICP vs healthy pregnancy (total RNA-seq, counted from raw reads)
+species: human
+tissue: Placenta
+geo_accession: null
+source:
+  label: BioProject PRJNA846869
+  url: https://www.ncbi.nlm.nih.gov/bioproject/PRJNA846869
+notes: >-
+  Published only as raw reads, so reads were counted here: the first 20 million read pairs of each placenta (of about
+  85 million), with Salmon against GENCODE v50 (analysis/step0_quantify_reads.py; per-run summary in
+  data/PRJNA846869_quantification.tsv). Ribosomal-RNA-depleted total RNA from 7 ICP and 5 healthy placentas.
+
+# Made by analysis/step0_quantify_reads.py PRJNA846869 (reads per gene, one column per placenta).
+file: data/PRJNA846869_gene_counts.tsv.gz
+read_options: {}
+columns:
+  gene_id: gene_id              # Ensembl gene ID (GENCODE v50, version removed)
+  gene_symbol: gene_name
+  chromosome: chromosome
+  biotype: gene_type
+
+# Columns are the samples' aliases in the archive: NC = normal (healthy) control, ICP = ICP.
+# Runs: NC_A SRR19576392, NC_B SRR19576391, NC_C SRR19576390, NC_E SRR19576399, NC_F SRR19576398,
+#       ICP_A SRR19576401, ICP_B SRR19576400, ICP_C SRR19576397, ICP_D SRR19576396, ICP_E SRR19576395,
+#       ICP_F SRR19576394, ICP_G SRR19576393.
+samples:
+  NC_A: Healthy
+  NC_B: Healthy
+  NC_C: Healthy
+  NC_E: Healthy
+  NC_F: Healthy
+  ICP_A: ICP
+  ICP_B: ICP
+  ICP_C: ICP
+  ICP_D: ICP
+  ICP_E: ICP
+  ICP_F: ICP
+  ICP_G: ICP
+
+reference_group: Healthy
+compare_group: ICP
+
+# Fetal sex from chrY genes (step 1 prints the calls); recorded, not adjusted for (as for the other datasets).
+fetal_sex: infer
+adjust_for_fetal_sex: false
+
+min_count: 10
+use_immport: false
+
+# Placenta samples hold varying amounts of decidua (maternal tissue rich in NK cells).
+composition_check:
+  name: Decidua
+  markers: [PRL, IGFBP1]
+
+cutoffs:
+  pvalue: 0.05
+  abs_log2fc: 1.0

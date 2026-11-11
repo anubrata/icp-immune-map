@@ -4,8 +4,8 @@ Status of every dataset considered for the ICP Immune Map, grouped by what it wo
 with design details and sources for each entry, is in [`resources/icp_dataset_handoff.md`](../../resources/icp_dataset_handoff.md)
 (IDs H01–H10 human, M01–M04 mouse, O01–O04 rat and pig).
 
-Last updated: 2026-11-10. Entries marked *checked* were verified against the archives on that date; the others are as
-reported in the handoff catalog and have not been re-checked.
+Last updated: 2026-11-11 (PRJNA846869 added). Entries marked *checked* were verified against the archives on
+2026-11-10 or 2026-11-11; the others are as reported in the handoff catalog and have not been re-checked.
 
 ## On the dashboard
 
@@ -13,13 +13,13 @@ reported in the handoff catalog and have not been re-checked.
 | --- | --- | --- | --- | --- |
 | H01 | [GSE282182](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE282182) | Human placenta, RNA-seq | 5 ICP vs 5 healthy | Not adjusted for fetal sex (healthy 4 F / 1 M, ICP 2 F / 3 M) |
 | H10 | [GSE46157](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE46157) | Human placenta, Agilent microarray | 4 ICP vs 2 healthy | Each array is a pool of 5 placentas; healthy and ICP arrays were run on separate slides |
+| H02 | [PRJNA846869](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA846869) ([paper](https://pmc.ncbi.nlm.nih.gov/articles/PMC9263217/)) | Human placenta, total RNA-seq | 7 ICP vs 5 healthy | Raw reads only, so counted here: first 20M of ~85M read pairs per placenta, Salmon + GENCODE v50 (`analysis/step0_quantify_reads.py`). Groups from the archive's sample names (NC = healthy). Little decidua except ICP_G |
 | M03 | [GSE314547](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE314547) | Mouse liver, RNA-seq | 4 ethinylestradiol vs 4 vehicle | A model, not patients: humanized PXR-CAR-CYP3A4/3A7 mice, pregnancy not stated; the MI-763F groups are left out. *Checked:* integer counts, library names match the GEO sample records |
 
 ## Could be added
 
 | ID | Dataset | Species · tissue | Design | What's needed |
 | --- | --- | --- | --- | --- |
-| H02 | [PRJNA846869](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA846869) ([paper](https://pmc.ncbi.nlm.nih.gov/articles/PMC9263217/)) | Human placenta, total RNA-seq | 7 ICP vs 5 healthy | *Checked:* raw reads only, 12 paired-end runs, 109 GB. Reads must be counted per gene here; proposed: the first 20M read pairs per patient (~25 GB; NCBI's AWS copy downloads at ~4 MB/s, ENA at ~0.9 MB/s). Awaiting go-ahead. |
 | H04 | [HRA003387](https://ngdc.cncb.ac.cn/gsa-human/browse/HRA003387) ([paper](https://pmc.ncbi.nlm.nih.gov/articles/PMC10570770/)) | Human maternal plasma, cell-free RNA | 74 ICP or pre-ICP vs 171 healthy | GSA-Human (controlled access): likely needs a data-access application. Blood, not placenta, so analysed separately; only 19 of the 74 had raised bile acids at sampling. |
 | M01 | [PRJNA1203061](https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1203061) ([paper](https://pmc.ncbi.nlm.nih.gov/articles/PMC12214484/)) | Mouse liver, DEHP-induced gestational cholestasis | 3 vs 3 | *Checked:* not public (no runs at NCBI SRA or ENA). The authors would need to release it. |
 | M02 | Xue et al. 2026 ([paper](https://pmc.ncbi.nlm.nih.gov/articles/PMC13046547/)) | Mouse placenta, DDC diet | 6 vs 4 placentas | No accession; ask the authors. Placentas may share mothers, so the litter of each is needed. |
@@ -47,7 +47,7 @@ reported in the handoff catalog and have not been re-checked.
 
 ## Suggested next steps
 
-1. **Add H02 (PRJNA846869).** It is the only other human placenta cohort with replicated patients, so it is the best
-   test of whether the lower NK-cell signal in GSE282182 holds up.
-2. **Contact the authors of H05 and M02.** They would add the most where the map is thinnest: immune cells in the
-   placenta, resolved by cell type (H05) or in an animal model (M02).
+1. **Contact the authors of H05 and M02.** They would add the most where the map is thinnest: immune cells in the
+   placenta, resolved by cell type (H05) or in an animal model (M02). H05's single-cell data would also show which
+   placental compartment (villi or decidua) the NK-cell differences come from, which bulk samples with varying amounts
+   of decidua cannot settle (H02 added on 2026-11-11 did not reproduce the lower NK-cell signal of H01).

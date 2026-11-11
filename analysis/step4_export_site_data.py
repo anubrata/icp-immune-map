@@ -299,6 +299,7 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
         "tissue": cfg["tissue"],
         "notes": cfg["notes"],
         "geo_accession": cfg["geo_accession"],
+        "source": cfg["source"],  # link for datasets not on GEO
         "reference_group": reference,
         "compare_group": compare,
         "method": info["method"],
