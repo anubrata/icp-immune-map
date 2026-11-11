@@ -16,8 +16,8 @@ Datasets (all from [GEO](https://www.ncbi.nlm.nih.gov/geo/), NCBI's public gene-
 | [GSE46157](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE46157) | Human | Placenta | Agilent microarray (4x44K v2) | 2 healthy, 4 ICP (2 mild, 2 severe) | moderated t-test, not adjusted for fetal sex |
 | [GSE314547](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE314547) | Mouse (model) | Liver | RNA-seq read counts | 4 vehicle, 4 ethinylestradiol (humanized PXR-CAR-CYP3A4/3A7 mice) | DESeq2; immune markers via one-to-one human orthologs |
 
-`resources/icp_dataset_handoff.md` lists the other candidate ICP datasets (human, mouse, rat, pig) and why each is or
-isn't ready for this analysis.
+[`doc/datasets/dataset_candidates.md`](doc/datasets/dataset_candidates.md) lists the other candidate ICP datasets (human,
+mouse, rat, pig), what each would need, and why some are excluded; the full catalog is in `resources/icp_dataset_handoff.md`.
 
 ## How it works
 
