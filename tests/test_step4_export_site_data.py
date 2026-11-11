@@ -77,8 +77,10 @@ def test_csv_and_dataset_index(pipeline_run):
     assert "H1 (Healthy, normalized)" in table.columns
     assert "immune_cell_markers" in table and "immport_lists" not in table
     index = strict_json(pipeline_run["site_data"] / "datasets.json")
-    assert index == [{"id": "SYNTH", "title": "Synthetic test data", "tissue": "Placenta",
+    assert index == [{"id": "SYNTH", "title": "Synthetic test data", "species": "human", "tissue": "Placenta",
                       "file": "SYNTH.json", "significant_genes": len(data["genes"])}]
+    assert data["species"] == "human" and data["notes"] is None
+    assert all(g["human_ortholog"] is None for g in data["genes"])
 
 
 def test_no_significant_genes_still_exports(pipeline_run, tmp_path):

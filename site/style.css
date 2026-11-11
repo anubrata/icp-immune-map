@@ -104,6 +104,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; padding-
 .card-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-start; justify-content: space-between; }
 .caption { margin: 4px 0 8px; color: var(--ink-2); max-width: 90ch; }
 .chart { width: 100%; }
+.chart.scroll-x { overflow-x: auto; }  /* a chart wider than its card (e.g. a grid with many genes) scrolls sideways */
 .empty { color: var(--ink-2); margin: 12px 0; }
 .error { padding: 12px; border: 1px solid var(--border); border-left: 3px solid var(--icp); background: var(--surface); }
 

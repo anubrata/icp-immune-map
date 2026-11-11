@@ -99,6 +99,8 @@ def gene_records(significant: pd.DataFrame, normalized: pd.DataFrame, zscores: p
             "id": gene_id,
             "symbol": gene["gene_symbol"],
             "current_symbol": gene["current_symbol"] if gene["current_symbol"] != gene["gene_symbol"] else None,
+            # other species: the one-to-one human ortholog the atlas tags come from (None for human data)
+            "human_ortholog": text(gene.get("human_ortholog")),
             "description": clean_description(gene.get("description")),
             "chromosome": text(gene.get("chromosome")),
             "biotype": text(gene.get("biotype")),
@@ -211,6 +213,8 @@ def significant_genes_csv(significant: pd.DataFrame, normalized: pd.DataFrame, e
     log2fc = significant["log2FoldChange"]
     table = pd.DataFrame({"gene_id": significant.index, "symbol": significant["gene_symbol"],
                           "current_symbol": significant["current_symbol"]})
+    if "human_ortholog" in significant:
+        table["human_ortholog"] = significant["human_ortholog"].fillna("").to_numpy()
     if "description" in significant:
         table["description"] = [clean_description(v) for v in significant["description"]]
     if "chromosome" in significant:
@@ -251,8 +255,10 @@ def write_dataset_index(site_data_dir: Path) -> None:
         if path.name == "datasets.json":
             continue
         data = json.loads(path.read_text())
-        entries.append({"id": data["id"], "title": data["title"], "tissue": data["tissue"],
-                        "file": path.name, "significant_genes": len(data["genes"])})
+        entries.append({"id": data["id"], "title": data["title"], "species": data.get("species", "human"),
+                        "tissue": data["tissue"], "file": path.name, "significant_genes": len(data["genes"])})
+    species_order = {"human": 0}  # human datasets first, then other species alphabetically
+    entries.sort(key=lambda e: (species_order.get(e["species"], 1), e["species"]))
     (site_data_dir / "datasets.json").write_text(json.dumps(entries, indent=2) + "\n")
 
 
@@ -289,7 +295,9 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
     data = {
         "id": cfg["id"],
         "title": cfg["title"],
+        "species": cfg["species"],
         "tissue": cfg["tissue"],
+        "notes": cfg["notes"],
         "geo_accession": cfg["geo_accession"],
         "reference_group": reference,
         "compare_group": compare,

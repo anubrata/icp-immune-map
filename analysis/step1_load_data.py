@@ -8,6 +8,8 @@ RNA-seq counts (data_type: counts), one table with a column per sample:
   Input:   the data file named in the config (e.g. data/GSE282182_gene_count.txt.gz)
   Outputs: results/<dataset>/counts.tsv          raw read counts: one row per gene, one column per sample
            results/<dataset>/genes.tsv           gene annotation: symbol, description, chromosome, biotype
+                                                 (and, with gene_annotation in the config, what that
+                                                 table adds, e.g. each mouse gene's human ortholog)
 
 Agilent one-color microarrays (data_type: microarray), one Feature Extraction file per sample:
   Input:   the files named in the config, plus the platform's probe annotation (from step 0)
@@ -66,6 +68,10 @@ def load_dataset(cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     table = read_table(path, cfg["read_options"])
     columns = cfg["columns"]
     sample_columns = list(cfg["samples"])
+    # Files written by R often have one name fewer in the header than in the data rows: the first
+    # column (the gene IDs) has no name, and pandas makes it the row index. Turn it back into a column.
+    if not isinstance(table.index, pd.RangeIndex) and columns["gene_id"] not in table.columns:
+        table = table.rename_axis(columns["gene_id"]).reset_index()
 
     # 1. Every column the config mentions must exist in the file.
     optional = [columns[key] for key in ["gene_symbol", *ANNOTATION_KEYS] if columns.get(key)]
@@ -108,6 +114,29 @@ def load_dataset(cfg: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
                            index=pd.Index(sample_columns, name="sample"))
     samples["library_size"] = counts.sum().to_numpy()
     return counts, genes, samples
+
+
+def add_gene_annotation(genes: pd.DataFrame, path: Path) -> tuple[pd.DataFrame, int]:
+    """Fill in what the data file does not say about each gene from a reference table (config
+    `gene_annotation`, e.g. resources/mouse_genes.tsv.gz), matched by gene ID (an Ensembl version
+    suffix such as .5 is ignored). Values in the data file itself take precedence. Also brings the
+    reference's human_ortholog column along, which step 3 uses to match the human immune cell atlas.
+    Returns (annotation, number of genes found in the reference)."""
+    if not path.exists():
+        raise DataError(f"gene_annotation file not found: {path}")
+    reference = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False).set_index("gene_id")
+    if "gene_symbol" not in reference:
+        raise DataError(f"{path.name}: the gene annotation table needs gene_id and gene_symbol columns")
+    matched = reference.reindex(genes.index.str.split(".").str[0])
+    matched.index = genes.index
+    found = matched["gene_symbol"].notna()
+    annotated = genes.copy()
+    no_symbol = annotated["gene_symbol"] == annotated.index  # the data file gave no symbol for these genes
+    annotated.loc[no_symbol & found, "gene_symbol"] = matched.loc[no_symbol & found, "gene_symbol"]
+    for key in [*ANNOTATION_KEYS, "human_ortholog", "ortholog_type"]:
+        if key in matched and key not in annotated:
+            annotated[key] = matched[key].fillna("")
+    return annotated, int(found.sum())
 
 
 def read_agilent(path: Path) -> pd.DataFrame:
@@ -210,9 +239,17 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT) -> None:
 
     group_sizes = ", ".join(f"{g}: {n}" for g, n in samples["group"].value_counts(sort=False).items())
     print(f"{cfg['id']}: {cfg['title']}")
+    print(f"  species: {cfg['species']}")
     print(f"  file:    {show_path(data_path(cfg))}")
     print(f"  genes:   {len(counts):,}")
     print(f"  samples: {len(samples)} ({group_sizes})")
+    if cfg["gene_annotation"]:
+        annotation = repo_path(cfg["gene_annotation"])
+        genes, found = add_gene_annotation(genes, annotation)
+        print(f"  gene annotation: {found:,} of {len(genes):,} genes found in {show_path(annotation)}")
+        if "human_ortholog" in genes:
+            print(f"  one-to-one human orthologs: {(genes['human_ortholog'] != '').sum():,} genes "
+                  "(used to match the human immune cell atlas)")
 
     if cfg.get("fetal_sex") == "infer":
         calls = infer_fetal_sex(counts, genes)

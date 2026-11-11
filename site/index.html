@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ICP Immune Map</title>
-  <meta name="description" content="Genes and immune cell types that change between healthy pregnancies and intrahepatic cholestasis of pregnancy (ICP).">
+  <meta name="description" content="Genes and immune cell types that change in intrahepatic cholestasis of pregnancy (ICP), in patients and in animal models.">
   <link rel="stylesheet" href="style.css">
   <!-- Plotly draws the charts; app.js reads the data files written by analysis/step4_export_site_data.py -->
   <script src="https://cdn.plot.ly/plotly-cartesian-2.35.2.min.js" charset="utf-8" defer></script>
@@ -16,11 +16,12 @@
       <div class="title-row">
         <div>
           <h1>ICP Immune Map</h1>
-          <p class="subtitle">Genes and immune cell types that change between healthy pregnancies and intrahepatic cholestasis of pregnancy (ICP)</p>
+          <p class="subtitle">Genes and immune cell types that change in intrahepatic cholestasis of pregnancy (ICP), in patients and in animal models</p>
         </div>
         <label class="dataset-picker">Dataset <select id="dataset-select"></select></label>
       </div>
       <p id="dataset-facts" class="facts"></p>
+      <p id="dataset-notes" class="note" hidden></p>
       <p id="cutoff-note" class="note" hidden></p>
     </div>
   </header>
@@ -95,7 +96,7 @@
           <h3 id="cell-name"></h3>
           <p id="cell-summary" class="caption"></p>
           <div id="cell-chart" class="chart"></div>
-          <p class="caption">Each dot is one patient's score. Lines mark each group's median. ● female fetus, ◆ male fetus.</p>
+          <p class="caption" id="cell-dots-caption"></p>
           <p id="cell-composition" class="caption"></p>
           <h3>Marker genes</h3>
           <ul id="cell-markers" class="chips"></ul>
@@ -134,7 +135,7 @@
           <h2 id="table-title">Significant genes</h2>
           <a id="csv-link" class="button" href="#">Download CSV</a>
         </div>
-        <p class="caption">Click a gene to see each patient's values. <span id="table-immune-note">◆ = immune-related: a marker gene of
+        <p class="caption"><span id="table-click-note">Click a gene to see each patient's values.</span> <span id="table-immune-note">◆ = immune-related: a marker gene of
           an immune cell population in the Human Immune Cell Atlas.</span> ⚠ = the plain group averages point the other way than
           the model; the gene panel explains why.</p>
         <div class="table-wrap">
@@ -160,12 +161,12 @@
           <p id="detail-sex" class="caption"></p>
           <p id="detail-warning" class="warning" role="note" hidden></p>
           <div class="card-head">
-            <h3>Each patient</h3>
+            <h3 id="detail-each">Each patient</h3>
             <button type="button" class="table-toggle" data-chart="detail-chart" data-table="detail-table">Show as table</button>
           </div>
           <div id="detail-chart" class="chart"></div>
           <div id="detail-table" class="table-wrap" hidden></div>
-          <p class="caption"><span id="detail-measure"></span> Lines mark each group's median. ● female fetus, ◆ male fetus.</p>
+          <p class="caption" id="detail-caption"></p>
           <h3>Marker gene of these immune cells (atlas)</h3>
           <ul id="detail-cells" class="chips"></ul>
           <div id="detail-immport" hidden>
@@ -178,14 +179,14 @@
     </div>
 
     <section class="card" aria-labelledby="heatmap-title">
-      <h2 id="heatmap-title">Expression pattern across patients</h2>
+      <h2 id="heatmap-title">Expression pattern across samples</h2>
       <p class="caption" id="heatmap-caption"></p>
       <div id="heatmap-chart" class="chart"></div>
       <p id="heatmap-empty" class="empty" hidden>No genes match the filters.</p>
     </section>
 
     <details class="card" id="qc">
-      <summary>Quality checks: samples, fetal sex and overall similarity</summary>
+      <summary id="qc-summary">Quality checks: samples, fetal sex and overall similarity</summary>
       <p class="caption" id="qc-caption"></p>
       <div id="pca-chart" class="chart"></div>
       <div id="samples-table" class="table-wrap"></div>
@@ -198,7 +199,7 @@
       <li>Expression data: <span id="footer-geo"></span>, <span id="footer-method"></span>.</li>
       <li>Immune cell markers: <span id="footer-atlas">Human Immune Cell Atlas (resources/human_immune_cell_atlas.txt in the repository)</span>. Its panels are candidate markers, not validated signatures.</li>
       <li id="footer-immport" hidden>Immune processes: <a href="https://docs.immport.org/apidocumentation/genelist/overview/">ImmPort gene lists</a>, curated from GO "immune system process" and Reactome "Immune System".</li>
-      <li>Current gene symbols: <a href="https://www.genenames.org/">HGNC</a>.</li>
+      <li id="footer-symbols">Current gene symbols: <a href="https://www.genenames.org/">HGNC</a>.</li>
     </ul>
     <p id="footer-meta"></p>
   </footer>

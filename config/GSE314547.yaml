@@ -1,0 +1,49 @@
+# Dataset config: mouse liver RNA-seq, an estrogen-induced cholestasis model (catalog ID M03).
+# GEO title: "Estradiol disrupts constitutive androstane receptor (CAR)-mediated bile acid homeostasis in a
+# murine model of intrahepatic cholestasis of pregnancy (ICP), and this effect is reversed by CAR ligands".
+
+id: GSE314547
+title: Mouse liver, estrogen-induced cholestasis vs vehicle (bulk RNA-seq)
+species: mouse
+geo_accession: GSE314547
+tissue: Liver
+notes: >-
+  A mouse model, not patients: livers of humanized PXR-CAR-CYP3A4/3A7 mice given ethinylestradiol ("Estrogen")
+  or vehicle, 4 mice each; the GEO record does not say the mice were pregnant. The study's two MI-763F (CAR ligand)
+  groups are left out. Immune cell markers come from the human atlas through one-to-one mouse orthologs, so some
+  markers (e.g. GNLY, which mice lack) cannot be measured.
+
+# Raw read counts as deposited on GEO (GSE314547_raw_data_merged_filtr.txt.gz). The header names only the
+# 16 sample columns; the unnamed first column holds the Ensembl gene IDs. The authors already removed
+# low-count genes (13,006 genes are left).
+file: data/GSE314547_raw_data_merged_filtr.txt.gz
+read_options: {}
+columns:
+  gene_id: gene_id              # the file's unnamed first column (Ensembl mouse gene IDs)
+
+# Mouse gene symbols, names, chromosomes and one-to-one human orthologs (MGI), made by
+# analysis/step0_fetch_mouse_genes.py. The human orthologs link mouse genes to the human immune cell atlas.
+gene_annotation: resources/mouse_genes.tsv.gz
+
+# Column (library name) -> group. From the GEO sample records: library J568-J571 = CV_rep1-4 (vehicle),
+# J580-J583 = EV_rep1-4 (ethinylestradiol + vehicle). Not used here: J572-J575 = CM_2.5 (MI-763F alone) and
+# J584-J587 = EM_2.5 (ethinylestradiol + MI-763F).
+samples:
+  J568_S1: Vehicle
+  J569_S2: Vehicle
+  J570_S3: Vehicle
+  J571_S4: Vehicle
+  J580_S13: Estrogen
+  J581_S14: Estrogen
+  J582_S15: Estrogen
+  J583_S16: Estrogen
+
+reference_group: Vehicle
+compare_group: Estrogen
+
+# Maternal liver: no fetal sex. The mice's own sex is not stated on GEO.
+min_count: 10
+use_immport: false
+cutoffs:
+  pvalue: 0.05
+  abs_log2fc: 1.0

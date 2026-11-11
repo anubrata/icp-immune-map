@@ -13,7 +13,10 @@ ImmPort on, the ImmPort lists it is in). A gene counts as immune-related if it m
 population, or is in an ImmPort list when ImmPort is on. (The atlas's cross-lineage "functional
 state" signatures, such as proliferation or hypoxia, don't count on their own: the atlas notes they
 are not specific to immune cells.) Symbols change over time (e.g. C4orf21 is now ZGRF1), so each
-gene is matched both by its symbol in the data file and by its current official (HGNC) symbol.
+human gene is matched both by its symbol in the data file and by its current official (HGNC) symbol.
+Other species (config `species`, e.g. mouse): the atlas lists human genes, so each gene is matched
+only through its one-to-one human ortholog from step 1 (mouse Prf1 -> PRF1), never by spelling;
+genes without one (e.g. Lyz1/Lyz2, both orthologs of LYZ) are not matched.
 
 Part B - score immune cell types. For every atlas population with at least 2 marker genes among
 the tested genes, each patient gets a score: the average of those markers' expression, after
@@ -135,13 +138,27 @@ def memberships(symbol_pairs: list[tuple[str, str]], sets: dict[str, set[str]], 
             for old, new in symbol_pairs]
 
 
+def human_symbols(table: pd.DataFrame, hgnc: HgncLookup, species: str = "human") -> tuple[list[str], list[tuple[str, str]]]:
+    """(each gene's current symbol, the two human symbols to look it up by in the atlas and ImmPort).
+
+    Human: the symbol in the data file and the current HGNC symbol. Other species: the gene's own
+    symbol is already current (from the reference table); it is looked up only by its one-to-one
+    human ortholog ("" if it has none, which matches nothing)."""
+    symbols = table["gene_symbol"].fillna("").astype(str)
+    if species == "human":
+        current = [current_symbol(gene_id, symbol, hgnc) for gene_id, symbol in zip(table.index, symbols)]
+        return current, list(zip(symbols, current))
+    if "human_ortholog" not in table:
+        raise ValueError(f"species {species}: the table has no human_ortholog column (set gene_annotation in the config)")
+    orthologs = table["human_ortholog"].fillna("").astype(str)
+    return symbols.tolist(), [(human, human) for human in orthologs]
+
+
 def annotate_immune(table: pd.DataFrame, atlas: pd.DataFrame, hgnc: HgncLookup,
-                    lists: dict[str, dict] | None = None) -> pd.DataFrame:
+                    lists: dict[str, dict] | None = None, species: str = "human") -> pd.DataFrame:
     """Add current_symbol, atlas_markers (';'-separated atlas IDs), immune_lists (ImmPort IDs; only
     when `lists` is given) and immune (True/False)."""
-    symbols = table["gene_symbol"].fillna("").astype(str)
-    current = [current_symbol(gene_id, symbol, hgnc) for gene_id, symbol in zip(table.index, symbols)]
-    pairs = list(zip(symbols, current))
+    current, pairs = human_symbols(table, hgnc, species)
 
     annotated = table.copy()
     annotated.insert(annotated.columns.get_loc("gene_symbol") + 1, "current_symbol", current)
@@ -167,15 +184,21 @@ def lists_table(lists: dict[str, dict], annotated: pd.DataFrame) -> pd.DataFrame
 
 # ------------------------------------------------------- Part B: cell-type scores
 
-def symbol_lookup(annotated: pd.DataFrame) -> dict[str, str]:
-    """Marker symbol -> the tested gene used for it in the cell-type scores.
+def symbol_lookup(annotated: pd.DataFrame, species: str = "human") -> dict[str, str]:
+    """Marker symbol (human) -> the tested gene used for it in the cell-type scores.
 
-    A gene whose symbol in the data file matches exactly wins; a gene that only matches through
-    its current official symbol (renamed, or a former duplicate such as MRC1L1 -> MRC1) is the
-    fallback. If several genes qualify at the same level, the most highly expressed one is used.
+    Human: a gene whose symbol in the data file matches exactly wins; a gene that only matches
+    through its current official symbol (renamed, or a former duplicate such as MRC1L1 -> MRC1) is
+    the fallback. Other species: the gene whose one-to-one human ortholog is the marker. If several
+    genes qualify at the same level, the most highly expressed one is used.
     """
     ranked = annotated.sort_values("baseMean", ascending=False)
     lookup: dict[str, str] = {}
+    if species != "human":
+        for gene_id, human in zip(ranked.index, ranked["human_ortholog"].fillna("")):
+            if human:
+                lookup.setdefault(human, gene_id)
+        return lookup
     for gene_id, original in zip(ranked.index, ranked["gene_symbol"]):
         lookup.setdefault(original, gene_id)
     for gene_id, current in zip(ranked.index, ranked["current_symbol"]):
@@ -208,13 +231,14 @@ def ols_term(y: np.ndarray, design: pd.DataFrame, term: str) -> dict:
 
 
 def score_cell_types(annotated: pd.DataFrame, vst: pd.DataFrame, samples: pd.DataFrame, atlas: pd.DataFrame,
-                     reference: str, compare: str, adjust_for_sex: bool, composition: dict | None = None):
+                     reference: str, compare: str, adjust_for_sex: bool, composition: dict | None = None,
+                     species: str = "human"):
     """Score every atlas population per patient and test the difference between groups.
 
     Returns (summary table, patient scores [populations x samples], composition score or None).
     """
     z = row_zscores(vst[samples.index])
-    lookup = symbol_lookup(annotated)
+    lookup = symbol_lookup(annotated, species)
     design = group_design(samples, reference, adjust_for_sex)
     term = f"group: {compare}"
 
@@ -274,7 +298,8 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, resources_di
     lists = read_gmt(resources_dir / "immport_gene_lists.gmt") if cfg["use_immport"] else None
 
     # Part A - tag genes
-    annotated = annotate_immune(table, atlas, hgnc, lists)
+    species = cfg["species"]
+    annotated = annotate_immune(table, atlas, hgnc, lists, species)
     write_tsv(annotated, folder / "de_all_genes_annotated.tsv")
     lists_path = folder / "immune_lists.tsv"
     if lists is not None:
@@ -283,11 +308,18 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, resources_di
         lists_path.unlink()
 
     significant = is_significant(annotated, cfg["cutoffs"])
-    renamed = int((annotated["current_symbol"] != annotated["gene_symbol"]).sum())
     rule = "atlas cell-population marker" + (" or ImmPort list" if lists is not None else "")
     print(f"Human Immune Cell Atlas: {len(atlas)} populations/states in {atlas['section'].nunique()} sections")
     print(f"ImmPort immune gene lists: " + (f"{len(lists)} lists (on)" if lists is not None else "off (use_immport: false)"))
-    print(f"Tested genes whose official symbol changed since the data file was made: {renamed:,}")
+    if species == "human":
+        renamed = int((annotated["current_symbol"] != annotated["gene_symbol"]).sum())
+        print(f"Tested genes whose official symbol changed since the data file was made: {renamed:,}")
+    else:
+        with_ortholog = annotated["human_ortholog"].fillna("") != ""
+        markers = {m for genes in atlas["genes"] for m in genes}
+        matched = markers & set(annotated.loc[with_ortholog, "human_ortholog"])
+        print(f"Tested {species} genes with a one-to-one human ortholog: {with_ortholog.sum():,} of {len(annotated):,}; "
+              f"through them {len(matched)} of the atlas's {len(markers)} marker genes can be measured")
     print(f"Immune-related ({rule}): {annotated['immune'].sum():,} of {len(annotated):,} tested genes, and "
           f"{annotated.loc[significant, 'immune'].sum()} of the {significant.sum()} genes passing "
           f"{describe_cutoffs(cfg['cutoffs'])}")
@@ -295,7 +327,7 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, resources_di
     # Part B - score immune cell types
     summary, patient_scores, composition = score_cell_types(
         annotated, log_scale, samples, atlas, cfg["reference_group"], cfg["compare_group"],
-        adjust_for_sex="fetal_sex" in info["design"], composition=cfg["composition_check"])
+        adjust_for_sex="fetal_sex" in info["design"], composition=cfg["composition_check"], species=species)
     write_tsv(summary, folder / "cell_type_scores.tsv")
     write_tsv(patient_scores.round(4), folder / "cell_type_patient_scores.tsv")
     composition_path = folder / "composition_score.tsv"

@@ -4,6 +4,7 @@
 id: GSE282182
 title: Placenta, ICP vs healthy pregnancy (bulk RNA-seq)
 geo_accession: GSE282182
+species: human
 tissue: Placenta
 
 # The data file. .txt/.tsv/.csv/.xlsx, optionally compressed (.gz). Path is relative to the repo root.
@@ -35,10 +36,13 @@ samples:
 reference_group: Healthy        # fold changes are compare_group relative to this group
 compare_group: ICP
 
-# Placenta is fetal tissue, and fetal sex differs between the groups here, so the model adjusts for it.
-# infer = call each sample's sex from chrY gene expression (step 1 prints the calls).
-# Alternatively list it per sample ({YC_N_2: F, ...}), or delete this line to skip the adjustment.
+# Placenta is fetal tissue. infer = call each sample's sex from chrY gene expression (step 1 prints the
+# calls: healthy 4 female / 1 male, ICP 2 female / 3 male). Alternatively list it per sample ({YC_N_2: F, ...}).
 fetal_sex: infer
+# Not adjusted for (for now): the first goal is immune-cell changes between ICP and healthy; sex-specific changes
+# come later. Fetal sex is still recorded and shown on the site, and chrY genes are left out of the test.
+# true = model "~ fetal_sex + condition" instead of "~ condition".
+adjust_for_fetal_sex: false
 
 # Genes need at least this many reads in at least as many samples as the smallest group to be tested.
 min_count: 10

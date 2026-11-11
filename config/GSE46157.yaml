@@ -4,6 +4,7 @@
 id: GSE46157
 title: Placenta, ICP vs healthy pregnancy (Agilent microarray)
 geo_accession: GSE46157
+species: human
 tissue: Placenta
 
 data_type: microarray

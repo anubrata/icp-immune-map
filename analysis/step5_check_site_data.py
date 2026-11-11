@@ -8,7 +8,8 @@ exits with an error, so GitHub Actions stops before publishing a broken site.
 
 Checked: which genes are significant; their fold change, p-value, FDR and mean count; per-patient
 values; heatmap values; arrow-chart levels; atlas tags (and ImmPort tags when on) and the
-immune-related flag; the immune cells x marker genes grid (and ImmPort bars when on); the
+immune-related flag, for other species through one-to-one human orthologs read straight from the
+reference table; the immune cells x marker genes grid (and ImmPort bars when on); the
 summary-tile inputs; every immune cell-type score with its p-value and FDR; and the flags for genes
 whose plain averages point the other way than the model.
 
@@ -27,8 +28,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from common import (RESOURCES_DIR, RESULTS_ROOT, SITE_DATA_DIR, expression_files, load_config, read_tsv, results_dir,
-                    step_arguments)
+from common import (RESOURCES_DIR, RESULTS_ROOT, SITE_DATA_DIR, expression_files, load_config, read_tsv, repo_path,
+                    results_dir, step_arguments)
 
 EPS = 1e-9  # room for floating-point noise on top of the rounding used in the export
 
@@ -172,10 +173,25 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
           f"{[g['symbol'] for g in genes if g['raw_disagrees']]}; wrong: {wrong_flag}")
 
     # 6. Immune tags --------------------------------------------------------------------------
-    hgnc = pd.read_csv(resources_dir / "hgnc_symbols.tsv", sep="\t", dtype=str, keep_default_na=False)
-    official = official_symbols(de, hgnc)
     in_file = de["gene_symbol"].fillna("").astype(str)
-    symbols = {i: {in_file[i], official[i]} for i in de.index}
+    species = cfg["species"]
+    if species == "human":
+        hgnc = pd.read_csv(resources_dir / "hgnc_symbols.tsv", sep="\t", dtype=str, keep_default_na=False)
+        official = official_symbols(de, hgnc)
+        symbols = {i: {in_file[i], official[i]} for i in de.index}
+    else:
+        # Straight from the reference table (not from step 1's output): each gene's one-to-one human ortholog.
+        gene_table = pd.read_csv(repo_path(cfg["gene_annotation"]), sep="\t", dtype=str, keep_default_na=False)
+        one_to_one = gene_table[gene_table["ortholog_type"] == "one-to-one"]
+        partners = one_to_one.groupby("human_ortholog")["mgi_id"].nunique() if "mgi_id" in one_to_one else pd.Series(dtype=int)
+        check(f"Human orthologs are one-to-one (each human gene stands for one {species} gene)",
+              (partners <= 1).all() and (one_to_one["human_ortholog"] != "").all(),
+              f"{len(one_to_one):,} {species} genes with a one-to-one human ortholog in the reference")
+        ortholog_of = dict(zip(one_to_one["gene_id"], one_to_one["human_ortholog"]))
+        orthologs = {i: ortholog_of.get(i.split(".")[0], "") for i in de.index}
+        symbols = {i: {orthologs[i]} - {""} for i in de.index}  # never the gene's own (mouse) symbol
+        d_shown = [g["symbol"] for g in shared if (g["human_ortholog"] or "") != orthologs[g["id"]]]
+        check("Human ortholog shown for each significant gene", not d_shown, f"mismatches: {d_shown[:5]}")
     atlas = pd.read_csv(resources_dir / "immune_cell_markers.tsv", sep="\t", dtype=str, keep_default_na=False)
     atlas_sets = {pid: {m for m in markers.split(",") if m} for pid, markers in zip(atlas["population_id"], atlas["markers"])}
     in_atlas = members(symbols, atlas_sets)
@@ -228,12 +244,19 @@ def run(config_path: str | Path, results_root: Path = RESULTS_ROOT, site_data_di
           f"{sum(g['immune'] for g in genes)} immune-related)")
 
     # 9. Immune cell-type scores ---------------------------------------------------------------
-    lookup = {}  # marker symbol -> gene: exact symbol in the data file first, else current symbol
+    # marker symbol -> gene. Human: exact symbol in the data file first, else current symbol.
+    # Other species: the gene whose one-to-one human ortholog is the marker. Ties: highest mean count.
+    lookup = {}
     ranked = de.sort_values("baseMean", ascending=False).index
-    for gene_id in ranked:
-        lookup.setdefault(in_file[gene_id], gene_id)
-    for gene_id in ranked:
-        lookup.setdefault(official[gene_id], gene_id)
+    if species == "human":
+        for gene_id in ranked:
+            lookup.setdefault(in_file[gene_id], gene_id)
+        for gene_id in ranked:
+            lookup.setdefault(official[gene_id], gene_id)
+    else:
+        for gene_id in ranked:
+            if orthologs[gene_id]:
+                lookup.setdefault(orthologs[gene_id], gene_id)
     z_all = zscores(vst[order])
     design = [np.ones(len(order))]
     if "fetal_sex" in info["design"]:

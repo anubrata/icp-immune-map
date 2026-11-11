@@ -54,21 +54,7 @@ def main() -> None:
     hgnc_path = RESOURCES_DIR / "hgnc_symbols.tsv"
     hgnc.to_csv(hgnc_path, sep="\t", index=False)
     print(f"  {len(hgnc):,} HGNC genes -> {show_path(hgnc_path)}")
-
-    readme = f"""# Reference files
-
-The ImmPort and HGNC files were downloaded on {date.today().isoformat()} by `analysis/step0_fetch_gene_lists.py`;
-re-run it to refresh them. The atlas document is kept by hand: after changing it, run
-`analysis/step0_extract_atlas_markers.py` to rebuild the marker table.
-
-| File | Source | Contents |
-| --- | --- | --- |
-| `immport_gene_lists.gmt` | [ImmPort gene lists]({IMMPORT_GMT_URL}) ([docs](https://docs.immport.org/apidocumentation/genelist/overview/)) | {len(lists)} immune gene lists ({n_genes:,} genes) curated from GO "immune system process" (GO:0002376) and Reactome "Immune System" (R-HSA-168256). One list per line: name, link, gene symbols. |
-| `hgnc_symbols.tsv` | [HGNC complete set]({HGNC_URL}) ([download page](https://www.genenames.org/download/archive/)) | Current official symbol, Ensembl gene ID and previous symbols for {len(hgnc):,} human genes. Used to match genes whose symbol changed. |
-| `human_immune_cell_atlas.txt` | Human Immune Cell Atlas (project document, plain-text export) | Candidate marker genes for ~200 human immune cell populations and functional states, in 14 sections. |
-| `immune_cell_markers.tsv` | Made from the atlas by `analysis/step0_extract_atlas_markers.py` | The atlas tables, one row per population: section, name, kind, markers, low markers, original text. |
-"""
-    (RESOURCES_DIR / "README.md").write_text(readme)
+    print(f"Downloaded {date.today().isoformat()}: update the dates and counts for these two files in resources/README.md")
 
 
 if __name__ == "__main__":

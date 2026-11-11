@@ -22,6 +22,11 @@ SITE_DATA_DIR = REPO_ROOT / "site" / "data"
 #   microarray  Agilent one-color arrays, one file per sample -> limma-style moderated t-test
 DATA_TYPES = ("counts", "microarray")
 
+# Species the pipeline can analyse (config `species`). The immune cell atlas lists human genes; for
+# other species each gene needs its human ortholog, which comes from the config's `gene_annotation`
+# table (for mouse: resources/mouse_genes.tsv.gz, made by analysis/step0_fetch_mouse_genes.py).
+SPECIES = ("human", "mouse")
+
 # Expression tables written by step 2: (normalized values on the original scale, log-scale values
 # used for the heatmap, PCA and cell-type scores)
 EXPRESSION_FILES = {"counts": ("normalized_counts.tsv", "vst.tsv"),
@@ -62,6 +67,15 @@ def load_config(path: str | Path) -> dict:
         require(isinstance(cfg["files"], dict) and set(cfg["files"]) == set(cfg["samples"]),
                 "files must give one data file for every sample in samples")
 
+    species = cfg.setdefault("species", "human")
+    require(species in SPECIES, f"species must be one of {SPECIES}")
+    cfg.setdefault("gene_annotation", None)
+    if species != "human":
+        require(data_type == "counts", f"species: {species} is only supported for RNA-seq counts")
+        require(cfg["gene_annotation"], f"species: {species} needs gene_annotation (a table with each gene's "
+                "human ortholog, e.g. resources/mouse_genes.tsv.gz) to match genes to the human immune cell atlas")
+        require(cfg.get("fetal_sex") != "infer", "fetal_sex: infer only works for human placenta (chrY marker genes)")
+
     groups = set(cfg["samples"].values())
     for key in ("reference_group", "compare_group"):
         require(cfg[key] in groups, f"{key} '{cfg[key]}' is not one of the sample groups {sorted(groups)}")
@@ -98,6 +112,7 @@ def load_config(path: str | Path) -> dict:
     cfg.setdefault("title", cfg["id"])
     cfg.setdefault("tissue", None)
     cfg.setdefault("geo_accession", None)
+    cfg.setdefault("notes", None)  # one or two sentences on the design and its limits, shown on the site
     cfg.setdefault("min_count", 10)
     cfg.setdefault("read_options", {})
     return cfg

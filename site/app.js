@@ -17,6 +17,7 @@ const TOP_HEATMAP = 50;       // genes shown in the heatmap
 const TOP_IMMUNE_LISTS = 15;  // immune lists shown in the immune-process chart
 const ROW_PX = 26;            // height of one row in the bar, arrow and cell-type charts
 const TABLE_ROWS = 25;        // rows shown in the gene table before "Show all"
+const MIN_COLUMN_PX = 22;     // narrowest gene column in the immune cells x marker genes grid
 
 const state = {
   data: null,                 // the dataset JSON
@@ -57,7 +58,8 @@ const fmt = {
   int: (n) => Math.round(n).toLocaleString("en-US"),
   count: (n) => (n == null ? "–" : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${Math.round(n / 1e3)}K`
     : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : n >= 10 ? String(Math.round(n)) : n.toFixed(1)),
-  p: (p) => (p == null ? "–" : p < 0.001 ? p.toExponential(1) : p.toFixed(3)),
+  // a p-value of exactly 0 means it was too small for the computer to store (below ~1e-300)
+  p: (p) => (p == null ? "–" : p === 0 ? "< 1e-300" : p < 0.001 ? p.toExponential(1) : p.toFixed(3)),
   log2fc: (x) => `${x > 0 ? "+" : "−"}${Math.abs(x).toFixed(2)}`,
   fold: (x) => `${(2 ** Math.abs(x)).toFixed(1)}× ${x > 0 ? "higher" : "lower"}`,
   sd: (x) => `${x > 0 ? "+" : "−"}${Math.abs(x).toFixed(2)} SD`,
@@ -68,10 +70,18 @@ const byPvalue = (a, b) => a.pvalue - b.pvalue;
 /** Words for the dataset's measurements: RNA-seq read counts or microarray intensities. */
 const units = () => (state.data.measure === "intensity"
   ? { axis: "Normalized intensity", value: "intensity (normalized)", mean: "Mean intensity", source: "on the array",
-      detail: "Normalized microarray intensities (quantile-normalized across arrays)." }
+      measured: "Normalized intensity", detail: "Normalized microarray intensities (quantile-normalized across arrays)." }
   : { axis: "Normalized read count", value: "reads (normalized)", mean: "Mean count", source: "in the file",
-      detail: "Normalized read counts (adjusted for sequencing depth)." });
+      measured: "Normalized count", detail: "Normalized read counts (adjusted for sequencing depth)." });
 const adjustedForSex = () => state.data.design.includes("fetal_sex");
+const isHuman = () => (state.data.species ?? "human") === "human";
+/** Who the samples come from: patients (human data) or animals (models). */
+const subjects = () => (isHuman() ? { one: "patient", many: "patients" }
+  : { one: state.data.species, many: { mouse: "mice", rat: "rats", pig: "pigs" }[state.data.species] ?? `${state.data.species}s` });
+const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+/** Fetal sex is known for (some) samples: placenta datasets. */
+const hasSex = () => state.data.samples.some((s) => s.fetal_sex);
+const sexLegend = () => (hasSex() ? " ● female fetus, ◆ male fetus." : "");
 const isImmune = (gene) => gene.immune;
 const geneLabel = (gene) => gene.symbol + (isImmune(gene) ? " ◆" : "") + (gene.raw_disagrees ? " ⚠" : "");
 const shorten = (text, max) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
@@ -167,7 +177,7 @@ function drawPatientDots(id, values, { yTitle, format, unit, zeroLine = false })
       x: members.map((_, k) => column + (k - (members.length - 1) / 2) * spread),
       y: members.map(({ i }) => values[i]),
       customdata: members.map(({ s, i }) => [plotlyText(s.id), format(values[i]), sexName(s.fetal_sex)]),
-      hovertemplate: `<b>%{customdata[0]}</b><br>%{customdata[1]} ${unit}<br>fetal sex: %{customdata[2]}<extra></extra>`,
+      hovertemplate: `<b>%{customdata[0]}</b><br>%{customdata[1]} ${unit}${hasSex() ? "<br>fetal sex: %{customdata[2]}" : ""}<extra></extra>`,
       marker: { color: groupColor(group), size: 11, symbol: members.map(({ s }) => (s.fetal_sex === "M" ? "diamond" : "circle")),
                 line: { color: token("--surface"), width: 2 } },
     };
@@ -212,8 +222,12 @@ async function start() {
   }
   if (!datasets.length) return showError("data/datasets.json lists no datasets.");
 
+  // one group of options per species, in the order of datasets.json (human first)
   const select = $("dataset-select");
-  select.replaceChildren(...datasets.map((d) => h("option", { value: d.id }, d.tissue ? `${d.id} · ${d.tissue}` : d.id)));
+  const bySpecies = new Map();
+  for (const d of datasets) bySpecies.set(d.species ?? "human", [...(bySpecies.get(d.species ?? "human") ?? []), d]);
+  select.replaceChildren(...[...bySpecies].map(([species, entries]) => h("optgroup", { label: capitalize(species) },
+    entries.map((d) => h("option", { value: d.id }, d.tissue ? `${d.id} · ${d.tissue}` : d.id)))));
   const fromLink = () => datasets.find((d) => d.id === decodeURIComponent(location.hash.slice(1)));
   select.addEventListener("change", () => { location.hash = select.value; });
   window.addEventListener("hashchange", () => { if (fromLink()) loadDataset(fromLink()); });
@@ -278,9 +292,11 @@ function renderHeader() {
   const ref = d.reference_group, cmp = d.compare_group;
   const sizes = countBy(d.samples, (s) => s.group);
   $("dataset-facts").replaceChildren(
-    geoLink(), ` · ${d.title} · ${sizes.get(ref)} ${ref} and ${sizes.get(cmp)} ${cmp} samples`,
+    geoLink(), ` · ${capitalize(d.species ?? "human")} · ${d.title} · ${sizes.get(ref)} ${ref} and ${sizes.get(cmp)} ${cmp} samples`,
     ` · ${d.method} (${d.software}), model ${d.design}`,
     d.chr_y_genes_excluded ? ` · fetal sex not adjusted for; ${d.chr_y_genes_excluded} chrY genes left out` : "");
+  $("dataset-notes").textContent = d.notes ?? "";
+  $("dataset-notes").hidden = !d.notes;
 
   const c = d.cutoffs;
   const pRule = c.padj != null ? `FDR-adjusted p-value is below ${c.padj}` : `p-value is below ${c.pvalue}`;
@@ -299,9 +315,19 @@ function renderHeader() {
     : ["analysed with DESeq2 (Love, Huber & Anders, ", h("em", {}, "Genome Biology"), " 2014) via ",
        h("a", { href: "https://github.com/owkin/PyDESeq2" }, "pydeseq2")]));
   $("footer-immport").hidden = !d.immport;
+  const viaOrtholog = isHuman() ? "" : " (through the gene's one-to-one human ortholog)";
   $("table-immune-note").textContent = d.immport
-    ? "◆ = immune-related: a marker gene of an immune cell population in the Human Immune Cell Atlas, or in an ImmPort immune gene list."
-    : "◆ = immune-related: a marker gene of an immune cell population in the Human Immune Cell Atlas.";
+    ? `◆ = immune-related: a marker gene of an immune cell population in the Human Immune Cell Atlas, or in an ImmPort immune gene list${viaOrtholog}.`
+    : `◆ = immune-related: a marker gene of an immune cell population in the Human Immune Cell Atlas${viaOrtholog}.`;
+  $("footer-symbols").replaceChildren(...(isHuman()
+    ? ["Current gene symbols: ", h("a", { href: "https://www.genenames.org/" }, "HGNC"), "."]
+    : [`${capitalize(d.species)} gene symbols and one-to-one human orthologs: `,
+       h("a", { href: "https://www.informatics.jax.org/" }, "MGI"), " (Mouse Genome Informatics; homology from the ",
+       h("a", { href: "https://www.alliancegenome.org/" }, "Alliance of Genome Resources"), "). Genes without a one-to-one human "
+       + "ortholog are not matched to atlas markers."]));
+  $("qc-summary").textContent = hasSex() ? "Quality checks: samples, fetal sex and overall similarity"
+    : "Quality checks: samples and overall similarity";
+  $("table-click-note").textContent = `Click a gene to see each ${subjects().one}'s values.`;
   const repo = githubRepoUrl();
   if (repo) {
     $("footer-atlas").replaceChildren(h("a", { href: `${repo}/blob/main/resources/human_immune_cell_atlas.txt` }, "Human Immune Cell Atlas"),
@@ -353,7 +379,8 @@ function renderCellMarkers() {
 
   $("markers-empty").hidden = cells.length > 0;
   $("markers-caption").textContent = "Each row is an immune cell population from the Human Immune Cell Atlas, each column one "
-    + "of the significant genes that is a marker of it. A square means the gene is a marker of that population: ▲ orange = "
+    + `of the significant genes that is a marker of it${isHuman() ? "" : " (through its one-to-one human ortholog)"}. `
+    + "A square means the gene is a marker of that population: ▲ orange = "
     + `higher in ${cmp}, ▼ blue = lower, darker = bigger change (hover for the fold change and p-value). Populations share `
     + "markers, e.g. PRF1 marks NK cells and cytotoxic T cells, so one gene can appear in several rows. § is the atlas "
     + "section. Click a square to show that population's genes below.";
@@ -377,7 +404,14 @@ function renderCellMarkers() {
   // a thin line between atlas sections
   const dividers = rows.slice(1).flatMap((c, i) => (sectionNumber(c) === sectionNumber(rows[i]) ? [] : [{
     type: "line", xref: "paper", yref: "y", x0: 0, x1: 1, y0: i + 0.5, y1: i + 0.5, line: { color: token("--axis"), width: 1 } }]));
-  $("markers-chart").style.maxWidth = `${420 + 64 * genes.length}px`;  // keep squares compact when there are few genes
+  // Few genes: keep the squares compact. Many genes: at least MIN_COLUMN_PX per gene, scrolling sideways if needed.
+  const chart = $("markers-chart");
+  chart.style.maxWidth = `${420 + 64 * genes.length}px`;
+  const neededWidth = 320 + MIN_COLUMN_PX * genes.length;
+  const width = neededWidth > chart.parentElement.clientWidth ? neededWidth : undefined;
+  if (Boolean(width) !== chart.classList.contains("scroll-x")) clearChart("markers-chart");  // switch sizing mode cleanly
+  chart.classList.toggle("scroll-x", Boolean(width));
+  if (width) $("markers-caption").textContent += ` Scroll sideways to see all ${genes.length} genes.`;
 
   draw("markers-chart", [
     {  // light background squares, so the grid reads as a grid
@@ -402,11 +436,14 @@ function renderCellMarkers() {
     },
   ], layout({
     height,
+    width,
     margin: { l: 10, r: 10, t: 10, b: 10 },
     shapes: dividers,
+    // fixed ranges: otherwise Plotly pads the axes around the ▲/▼ text and leaves empty bands
     xaxis: axis("", { tickvals: columnsX, ticktext: genes.map((id) => byId.get(id).symbol + (byId.get(id).raw_disagrees ? " ⚠" : "")),
+                      range: [-0.5, genes.length - 0.5],
                       side: "top", showgrid: false, zeroline: false, tickfont: { color: token("--ink-1"), size: 12 } }),
-    yaxis: axis("", { tickvals: rowsY, showgrid: false, zeroline: false, tickfont: { color: token("--ink-2") },
+    yaxis: axis("", { tickvals: rowsY, range: [-0.5, rows.length - 0.5], showgrid: false, zeroline: false, tickfont: { color: token("--ink-2") },
                       ticktext: rows.map((c) => `${plotlyText(shorten(c.name, 36))} <span style="color:${token("--ink-muted")}">§${sectionNumber(c)}</span>`) }),
   }), (event) => {
     const id = event.points?.find((p) => p.customdata)?.customdata?.[5];
@@ -490,14 +527,17 @@ function renderCellTypes() {
   const scored = d.cell_types;
   const lowestFdr = Math.min(...scored.map((c) => c.fdr ?? 1));
   const passing = scored.filter((c) => c.fdr != null && c.fdr < 0.05).length;
-  $("cells-caption").textContent = "Immune cell populations and states from the Human Immune Cell Atlas. Each patient gets a "
-    + "score per population: the average of its marker genes, each scaled across patients (using all "
-    + `${fmt.int(d.genes_tested)} tested genes, not only the significant ones). The dot shows how much higher (orange, right) `
-    + `or lower (blue, left) the score is in ${cmp} than in ${ref}, in standard deviations (SD), adjusted for fetal sex; the `
-    + "line is the 95% confidence interval and filled dots have p < 0.05. "
+  const who = subjects();
+  $("cells-caption").textContent = `Immune cell populations and states from the Human Immune Cell Atlas. Each ${who.one} gets a `
+    + `score per population: the average of its marker genes, each scaled across ${who.many} (using all `
+    + `${fmt.int(d.genes_tested)} tested genes, not only the significant ones`
+    + `${isHuman() ? "" : `; ${d.species} genes stand in for markers through their one-to-one human orthologs`}). `
+    + `The dot shows how much higher (orange, right) or lower (blue, left) the score is in ${cmp} than in ${ref}, in standard `
+    + `deviations (SD)${adjustedForSex() ? ", adjusted for fetal sex" : ""}; the line is the 95% confidence interval and filled `
+    + "dots have p < 0.05. Populations with fewer than 2 measured markers are not scored. "
     + (passing ? `${passing} of ${scored.length} populations pass FDR < 0.05. `
       : `None of the ${scored.length} scored populations passes FDR < 0.05 (lowest ${fmt.p(lowestFdr)}), so treat them as leads. `)
-    + "Click a population to see each patient.";
+    + `Click a population to see each ${who.one}.`;
 
   const sections = d.atlas_sections.filter((s) => scored.some((c) => c.section === s));
   if (!sections.includes(state.cellSection)) state.cellSection = sections[0] ?? null;
@@ -568,6 +608,7 @@ function renderCellDetail() {
   $("cell-name").textContent = cell.name + (cell.kind === "functional state" ? " (functional state)" : "");
   $("cell-summary").textContent = `${cell.section} · score ${fmt.sd(cell.effect)} in ${cmp} `
     + `(95% CI ${fmt.sd(cell.ci[0])} to ${fmt.sd(cell.ci[1])}) · p = ${fmt.p(cell.pvalue)} · FDR = ${fmt.p(cell.fdr)}`;
+  $("cell-dots-caption").textContent = `Each dot is one ${subjects().one}'s score. Lines mark each group's median.${sexLegend()}`;
   drawPatientDots("cell-chart", cell.scores, { yTitle: "Marker score (SD)", format: (v) => v.toFixed(2), unit: "SD", zeroLine: true });
 
   const check = d.composition_check;
@@ -642,7 +683,7 @@ function filteredGenes() {
     (direction === "all" || (direction === "up" ? g.log2fc > 0 : g.log2fc < 0))
     && (!immuneOnly || isImmune(g))
     && (!list || g.immune_lists.includes(list) || g.atlas_markers.includes(list))
-    && (!query || [g.symbol, g.current_symbol, g.description, g.id].some((v) => v && v.toLowerCase().includes(query))));
+    && (!query || [g.symbol, g.current_symbol, g.human_ortholog, g.description, g.id].some((v) => v && v.toLowerCase().includes(query))));
 }
 
 /** Redraw everything below the filter row. */
@@ -669,10 +710,11 @@ function renderArrows(genes) {
   // the most significant genes, ordered so the biggest increase is at the top
   const top = [...genes].sort(byPvalue).slice(0, TOP_ARROWS).sort((a, b) => a.log2fc - b.log2fc);
   $("arrows-empty").hidden = top.length > 0;
-  $("arrows-caption").textContent = `Each row is a gene. The blue dot is its expression level in ${ref} patients and the `
-    + `arrow points to its level in ${cmp} patients (orange): right means higher in ${cmp}, left means lower. Levels are `
+  const who = subjects();
+  $("arrows-caption").textContent = `Each row is a gene. The blue dot is its expression level in ${ref} ${who.many} and the `
+    + `arrow points to its level in ${cmp} ${who.many} (orange): right means higher in ${cmp}, left means lower. Levels are `
     + `the model's estimates${adjustedForSex() ? " with fetal sex held at the cohort average" : ""}, so each arrow is the fold change in the `
-    + `table; click a gene to see every patient's actual value. Showing the ${top.length} most significant of `
+    + `table; click a gene to see every ${who.one}'s actual value. Showing the ${top.length} most significant of `
     + `${genes.length} genes; ◆ marks immune-related genes, ⚠ genes whose plain averages point the other way.`;
   if (!top.length) return clearChart("arrows-chart");
 
@@ -795,7 +837,8 @@ function renderDetail() {
   if (!gene) return;
 
   $("detail-symbol").textContent = gene.symbol;
-  $("detail-renamed").textContent = gene.current_symbol ? `now named ${gene.current_symbol}` : "";
+  $("detail-renamed").textContent = gene.current_symbol ? `now named ${gene.current_symbol}`
+    : isHuman() ? "" : gene.human_ortholog ? `human ortholog ${gene.human_ortholog}` : "no one-to-one human ortholog";
   $("detail-immune").textContent = isImmune(gene) ? "◆ Immune-related" : "Not immune-annotated";
   $("detail-description").textContent = gene.description ?? "";
   const stats = [
@@ -849,17 +892,28 @@ function renderDetail() {
     : [h("li", { class: "muted" }, "None")]));
 
   const symbol = encodeURIComponent(gene.current_symbol ?? gene.symbol);
-  const links = [["GeneCards", `https://www.genecards.org/cgi-bin/carddisp.pl?gene=${symbol}`],
-                 ["NCBI Gene", `https://www.ncbi.nlm.nih.gov/gene/?term=${symbol}%5Bsym%5D+AND+human%5Borgn%5D`]];
-  if (gene.id.startsWith("ENSG")) links.push(["Ensembl", `https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${encodeURIComponent(gene.id.split(".")[0])}`]);
+  const ensemblId = encodeURIComponent(gene.id.split(".")[0]);
+  const links = isHuman()
+    ? [["GeneCards", `https://www.genecards.org/cgi-bin/carddisp.pl?gene=${symbol}`],
+       ["NCBI Gene", `https://www.ncbi.nlm.nih.gov/gene/?term=${symbol}%5Bsym%5D+AND+human%5Borgn%5D`]]
+    : [["MGI", `https://www.informatics.jax.org/quicksearch/summary?query=${symbol}`],
+       ["NCBI Gene", `https://www.ncbi.nlm.nih.gov/gene/?term=${symbol}%5Bsym%5D+AND+${encodeURIComponent(d.species)}%5Borgn%5D`]];
+  if (gene.id.startsWith("ENSG")) links.push(["Ensembl", `https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${ensemblId}`]);
+  if (gene.id.startsWith("ENSMUSG")) links.push(["Ensembl", `https://www.ensembl.org/Mus_musculus/Gene/Summary?g=${ensemblId}`]);
+  if (gene.human_ortholog) {
+    links.push([`human ${gene.human_ortholog} (GeneCards)`,
+                `https://www.genecards.org/cgi-bin/carddisp.pl?gene=${encodeURIComponent(gene.human_ortholog)}`]);
+  }
   $("detail-links").replaceChildren("Look up: ", ...links.flatMap(([name, url], i) =>
     [i ? " · " : "", h("a", { href: url, target: "_blank", rel: "noopener" }, name)]));
 
-  $("detail-measure").textContent = units().detail;
+  $("detail-each").textContent = `Each ${subjects().one}`;
+  $("detail-caption").textContent = `${units().detail} Lines mark each group's median.${sexLegend()}`;
   drawPatientDots("detail-chart", gene.normalized, { yTitle: units().axis, format: fmt.count, unit: units().value });
   $("detail-table").replaceChildren(simpleTable([
-    ["Sample", (r) => r.s.id], ["Group", (r) => r.s.group], ["Fetal sex", (r) => sexName(r.s.fetal_sex)],
-    ["Normalized count", (r) => fmt.count(gene.normalized[r.i]), true],
+    ["Sample", (r) => r.s.id], ["Group", (r) => r.s.group],
+    ...(hasSex() ? [["Fetal sex", (r) => sexName(r.s.fetal_sex)]] : []),
+    [units().measured, (r) => fmt.count(gene.normalized[r.i]), true],
   ], d.samples.map((s, i) => ({ s, i }))));
 }
 
@@ -869,8 +923,9 @@ function renderHeatmap(genes) {
   const d = state.data, samples = d.samples;
   const top = [...genes].sort(byPvalue).slice(0, TOP_HEATMAP).sort((a, b) => b.log2fc - a.log2fc);
   $("heatmap-empty").hidden = top.length > 0;
-  $("heatmap-caption").textContent = "Each row is a gene, each column a patient. Color shows whether the patient's expression is "
-    + "above (orange) or below (blue) that gene's average across all patients, in standard deviations (z-score of "
+  const who = subjects();
+  $("heatmap-caption").textContent = `Each row is a gene, each column a ${who.one}. Color shows whether the ${who.one}'s expression is `
+    + `above (orange) or below (blue) that gene's average across all ${who.many}, in standard deviations (z-score of `
     + `variance-stabilized counts). Showing the ${top.length} most significant of ${genes.length} genes, highest increase in `
     + `${d.compare_group} first.`;
   if (!top.length) return clearChart("heatmap-chart");
@@ -917,18 +972,18 @@ function renderQualityChecks() {
   const d = state.data;
   const sizes = countBy(d.samples, (s) => s.group);
   const [pc1, pc2] = d.pca_variance.map((v) => Math.round(v * 100));
-  $("qc-caption").textContent = "Principal component analysis of all patients, using the 500 most variable of the "
-    + `${fmt.int(d.genes_tested)} tested genes (not only the significant ones). Patients close together have similar overall `
+  const who = subjects();
+  $("qc-caption").textContent = `Principal component analysis of all ${who.many}, using the 500 most variable of the `
+    + `${fmt.int(d.genes_tested)} tested genes (not only the significant ones). ${capitalize(who.many)} close together have similar overall `
     + `expression; if the groups do not separate, ${d.compare_group} has only a subtle overall effect. With `
-    + `${[...sizes.values()].join(" and ")} patients per group, a single unusual sample can sway the results. `
-    + "● female fetus, ◆ male fetus.";
+    + `${[...sizes.values()].join(" and ")} ${who.many} per group, a single unusual sample can sway the results.${sexLegend()}`;
 
   const traces = [...sizes.keys()].map((group) => {
     const members = d.samples.filter((s) => s.group === group);
     return {
       type: "scatter", mode: "markers", name: group, x: members.map((s) => s.pc1), y: members.map((s) => s.pc2),
       customdata: members.map((s) => [plotlyText(s.id), sexName(s.fetal_sex)]),
-      hovertemplate: "<b>%{customdata[0]}</b><br>fetal sex: %{customdata[1]}<extra></extra>",
+      hovertemplate: `<b>%{customdata[0]}</b>${hasSex() ? "<br>fetal sex: %{customdata[1]}" : ""}<extra></extra>`,
       marker: { color: groupColor(group), size: 12, symbol: members.map((s) => (s.fetal_sex === "M" ? "diamond" : "circle")),
                 line: { color: token("--surface"), width: 2 } },
     };
@@ -939,7 +994,7 @@ function renderQualityChecks() {
     yaxis: axis(`PC2 (${pc2}% of variation)`, { zeroline: false }),
   }));
   $("samples-table").replaceChildren(simpleTable([
-    ["Sample", (s) => s.id], ["Group", (s) => s.group], ["Fetal sex", (s) => sexName(s.fetal_sex)],
+    ["Sample", (s) => s.id], ["Group", (s) => s.group], ...(hasSex() ? [["Fetal sex", (s) => sexName(s.fetal_sex)]] : []),
     ["Sequenced reads", (s) => (s.library_size == null ? "–" : fmt.int(s.library_size)), true], ["PC1", (s) => s.pc1?.toFixed(1), true], ["PC2", (s) => s.pc2?.toFixed(1), true],
   ], d.samples));
 }
