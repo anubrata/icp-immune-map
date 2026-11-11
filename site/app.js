@@ -18,6 +18,7 @@ const TOP_IMMUNE_LISTS = 15;  // immune lists shown in the immune-process chart
 const ROW_PX = 26;            // height of one row in the bar, arrow and cell-type charts
 const TABLE_ROWS = 25;        // rows shown in the gene table before "Show all"
 const MIN_COLUMN_PX = 22;     // narrowest gene column in the immune cells x marker genes grid
+const TOP_TILE_LINEAGES = 4;  // major lineages listed in the summary tile
 
 const state = {
   data: null,                 // the dataset JSON
@@ -67,6 +68,8 @@ const fmt = {
 };
 
 const byPvalue = (a, b) => a.pvalue - b.pvalue;
+/** Cell types: smallest p-value first; equal p-values (populations sharing the same markers) by name. */
+const bySignificance = (a, b) => a.pvalue - b.pvalue || a.name.localeCompare(b.name);
 /** Words for the dataset's measurements: RNA-seq read counts or microarray intensities. */
 const units = () => (state.data.measure === "intensity"
   ? { axis: "Normalized intensity", value: "intensity (normalized)", mean: "Mean intensity", source: "on the array",
@@ -354,13 +357,15 @@ function renderTiles() {
   $("tile-immune").textContent = fmt.int(immune.length);
   $("tile-immune-sub").replaceChildren(...directionSplit(immuneHigher, immune.length - immuneHigher, cmp));
 
-  // the major-lineage population (first atlas section) with the smallest p-value
-  const lead = d.cell_types.filter((c) => c.section === d.atlas_sections[0]).sort(byPvalue)[0];
-  $("tile-cell").textContent = lead ? lead.name : "–";
-  $("tile-cell-sub").replaceChildren(...(lead
-    ? [h("span", { class: `swatch ${lead.effect > 0 ? "higher" : "lower"}` }),
-       `${lead.effect > 0 ? "higher" : "lower"} in ${cmp} (${fmt.sd(lead.effect)}) · p = ${fmt.p(lead.pvalue)} · FDR ${fmt.p(lead.fdr)}`]
-    : ["No atlas population could be scored"]));
+  // the scored major-lineage populations (first atlas section), smallest p-value first; click one to see it below
+  const lineages = d.cell_types.filter((c) => c.section === d.atlas_sections[0]).sort(bySignificance);
+  $("tile-cells").replaceChildren(...(lineages.length
+    ? lineages.slice(0, TOP_TILE_LINEAGES).map((c) => h("li", {},
+        h("span", {}, h("span", { class: `swatch ${c.effect > 0 ? "higher" : "lower"}`,
+                                  title: `${c.effect > 0 ? "higher" : "lower"} in ${cmp}` }),
+          h("button", { type: "button", onclick: () => showCellType(c.id) }, c.name)),
+        h("span", { class: "muted" }, `${fmt.sd(c.effect)} · p ${fmt.p(c.pvalue)}`)))
+    : [h("li", { class: "muted" }, "No atlas population could be scored")]));
 }
 
 /* -------------------------------------- immune cells and their changed marker genes */
@@ -534,7 +539,8 @@ function renderCellTypes() {
     + `${isHuman() ? "" : `; ${d.species} genes stand in for markers through their one-to-one human orthologs`}). `
     + `The dot shows how much higher (orange, right) or lower (blue, left) the score is in ${cmp} than in ${ref}, in standard `
     + `deviations (SD)${adjustedForSex() ? ", adjusted for fetal sex" : ""}; the line is the 95% confidence interval and filled `
-    + "dots have p < 0.05. Populations with fewer than 2 measured markers are not scored. "
+    + "dots have p < 0.05. Populations are ordered by p-value, most significant at the top. Populations with fewer than 2 "
+    + "measured markers are not scored. "
     + (passing ? `${passing} of ${scored.length} populations pass FDR < 0.05. `
       : `None of the ${scored.length} scored populations passes FDR < 0.05 (lowest ${fmt.p(lowestFdr)}), so treat them as leads. `)
     + `Click a population to see each ${who.one}.`;
@@ -545,8 +551,9 @@ function renderCellTypes() {
   $("cells-section").value = state.cellSection ?? "";
   renderCellTable(scored);
 
-  const rows = scored.filter((c) => c.section === state.cellSection).sort((a, b) => a.effect - b.effect);
-  if (!rows.some((c) => c.id === state.selectedCell)) state.selectedCell = [...rows].sort(byPvalue)[0]?.id ?? null;
+  // most significant at the top (Plotly draws the first row at the bottom, hence the reverse)
+  const rows = scored.filter((c) => c.section === state.cellSection).sort(bySignificance).reverse();
+  if (!rows.some((c) => c.id === state.selectedCell)) state.selectedCell = rows.at(-1)?.id ?? null;
   $("cells-empty").hidden = rows.length > 0;
   if (!rows.length) {
     clearChart("cells-chart");
@@ -641,7 +648,7 @@ function renderCellTable(cells) {
                  [`p adjusted for ${check.name}`, (c) => fmt.p(c.pvalue_composition_adjusted), true]);
   }
   const file = `${state.data.id}_cell_type_scores.csv`;
-  $("cells-table").replaceChildren(simpleTable(columns, [...cells].sort(byPvalue)),
+  $("cells-table").replaceChildren(simpleTable(columns, [...cells].sort(bySignificance)),
     h("p", {}, h("a", { href: `data/${file}`, download: file }, "Download all cell-type scores (CSV)")));
 }
 
